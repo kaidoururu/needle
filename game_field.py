@@ -36,10 +36,10 @@ class FieldMixin:
 
 
     def trap_growth(self):
-        """Множитель ловушек: в бесконечном стоге растёт."""
-        if self.level <= MAX_LEVEL:
+        """Множитель ловушек: растёт с 5-го уровня и дальше."""
+        if self.level <= 4:
             return 1.0
-        return 1.0 + ENDLESS_TRAP_GROWTH * (self.level - MAX_LEVEL)
+        return 1.0 + ENDLESS_TRAP_GROWTH * (self.level - 4)
 
 
 
@@ -105,7 +105,8 @@ class FieldMixin:
         self.needle_idx = random.randrange(n)
         self.cells[self.needle_idx]["item"] = None
         self.golden_needle = (random.randrange(GOLD_NEEDLE_ONE_IN) == 0)
-        self.compass_hint = None   # игла переложена — старая подсказка врёт
+        self.compass_hint = None
+        self.compass_quadrant = None
         self.field_dirty = True
 
 
@@ -118,6 +119,7 @@ class FieldMixin:
         self.cells[self.needle_idx]["item"] = None
         self.golden_needle = (random.randrange(GOLD_NEEDLE_ONE_IN) == 0)
         self.compass_hint = None
+        self.compass_quadrant = None
         self.won = False
         self.dead = False
         self.needle_found = False
@@ -221,12 +223,31 @@ class FieldMixin:
         if self.field_surf is None or self.field_dirty:
             self.make_field_surface()
         self.screen.blit(self.field_surf, self.field_rect.topleft)
+        self.draw_compass_highlight()
         self.draw_straws()
         self.draw_messages()
         self.draw_notice()
+        self.draw_tutorial()
+        self.draw_idle_hint()
         if self.won:
             self.draw_win_screen()
         elif self.dead:
             self.draw_death_screen()
 
-    # ---------- описания веток лавки (с цифрами или без) ----------
+    def draw_compass_highlight(self):
+        """Золотая пульсирующая подсветка четверти стога с иглой."""
+        if not self.compass_quadrant or self.won or self.dead:
+            return
+        north, west = self.compass_quadrant
+        qw = self.field_rect.w / 2
+        qh = self.field_rect.h / 2
+        x0 = self.field_rect.x + (0 if west else qw)
+        y0 = self.field_rect.y + (0 if north else qh)
+        p = 0.55 + 0.45 * math.sin(self.time * 5.0)
+        ov = pygame.Surface((max(1, int(qw)), max(1, int(qh))),
+                            pygame.SRCALPHA)
+        ov.fill((255, 200, 60, int(60 * p)))
+        self.screen.blit(ov, (int(x0), int(y0)))
+        pygame.draw.rect(self.screen, GOLD,
+                         (int(x0), int(y0), int(qw), int(qh)),
+                         max(3, int(2 + 4 * p)), border_radius=12)

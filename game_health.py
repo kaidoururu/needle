@@ -34,8 +34,8 @@ class HealthMixin:
 
 
     def poison_duration(self):
-        return min(POISON_DUR_MAX,
-                   POISON_DUR_BASE + POISON_DUR_STEP * self.level)
+        """Длительность яда растёт с уровнем без потолка."""
+        return POISON_DUR_BASE + POISON_DUR_STEP * self.level
 
 
 
@@ -49,6 +49,10 @@ class HealthMixin:
         self.bandages -= 1
         self.health = min(self.max_health, self.health + BANDAGE_HEAL)
         self.add_message("Бинт использован", GREEN_MSG)
+        self.tut_bandage_done = True
+        if self.tutorial and self.tutorial.get("item") == "bandage":
+            self.tutorial = None
+        self.save_game()
 
 
 
@@ -64,5 +68,7 @@ class HealthMixin:
         self.poison_time = 0.0
         self.add_message("Противоядие выпито — отравление снято!",
                          GREEN_MSG)
-
-    # ---------- сообщения и таблички ----------
+        self.tut_antidote_done = True
+        if self.tutorial and self.tutorial.get("item") == "antidote":
+            self.tutorial = None
+        self.save_game()

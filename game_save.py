@@ -29,6 +29,8 @@ class SaveMixin:
             "streak": self.streak,
             "max_stamina": self.max_stamina,
             "max_health": self.max_health,
+            "tut_bandage_done": self.tut_bandage_done,
+            "tut_antidote_done": self.tut_antidote_done,
         }
         try:
             with open(SAVE_FILE, "w", encoding="utf-8") as f:
@@ -41,6 +43,7 @@ class SaveMixin:
     def load_game(self):
         if not os.path.exists(SAVE_FILE):
             return
+        self.has_save = True
         try:
             with open(SAVE_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -62,5 +65,9 @@ class SaveMixin:
             self.streak = int(data.get("streak", 0))
             self.max_stamina = float(data.get("max_stamina", STAMINA_BASE))
             self.max_health = float(data.get("max_health", HEALTH_BASE))
+            self.tut_bandage_done = bool(
+                data.get("tut_bandage_done", False))
+            self.tut_antidote_done = bool(
+                data.get("tut_antidote_done", False))
         except (TypeError, ValueError):
             pass

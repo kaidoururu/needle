@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 # Игра "Игла в стоге сена" на pygame.
 # Справка по игре — кнопка «?» в панели внизу, всплывает как лавка.
-#
-#                 цены улучшений и номера уровней; остальное скрыто.
 
 import sys
 
@@ -20,7 +18,7 @@ REGEN_STEP = 1.0
 MAX_LEVEL = 10
 NEEDLE_BONUS_BASE = 300
 SHOP_H = 970           # высота лавки: 6 панелей + шапка
-HELP_H = 1200   # высота справки выросла: новые разделы
+HELP_H = 1400   # высота справки: новые разделы
 SLIDE_SPEED = 4.0
 SHOP_PANEL_H = 120
 SHOP_GAP = 10
@@ -38,7 +36,7 @@ HEALTH_BASE = 100
 HEALTH_STEP = 10
 ANIMAL_DAMAGE_BASE = 10
 ANIMAL_DAMAGE_STEP = 6
-BANDAGE_HEAL = 30
+BANDAGE_HEAL = 25
 # здоровье само НЕ восстанавливается — только бинты
 
 # отравление
@@ -46,7 +44,6 @@ POISON_RATE_BASE = 0.5
 POISON_RATE_STEP = 0.4
 POISON_DUR_BASE = 45.0
 POISON_DUR_STEP = 6.0
-POISON_DUR_MAX = 60.0   # яд дольше минуты не мучает
 
 # аптека
 BANDAGE_CAP_BASE = 2
@@ -63,9 +60,9 @@ CELL_STEP = 4
 PRICE_TIERS = ((0.75, 1), (0.5, 2), (0.3, 3), (0.0, 5))
 
 # ---------- баланс ловушек и находок ----------
-P_STONE_BASE = 0.002
-P_PLANT_BASE = 0.008
-P_ANIMAL_BASE = 0.008
+P_STONE_BASE = 0.003
+P_PLANT_BASE = 0.012
+P_ANIMAL_BASE = 0.012
 P_BANDAGE_BASE = 0.020
 P_ANTIDOTE_BASE = 0.012
 TRAP_LIGHT_MULT = 0.5
@@ -89,7 +86,7 @@ P_COMPASS = 0.004
 P_MAGNET = 0.003
 P_CLOVER = 0.004
 CLOVER_TIME = 30.0         # сколько секунд действует клевер
-CLOVER_SAVE_CHANCE = 0.5   # шанс спастись от сработавшей ловушки
+CLOVER_SAVE_CHANCE = 0.35  # шанс спастись от сработавшей ловушки
 MAGNET_MULT = 2            # во сколько раз больше следующий рывок
 
 # ---------- золотая игла ----------
@@ -105,9 +102,10 @@ ENDLESS_TRAP_GROWTH = 0.05  # +5% ловушек за уровень после 
 ENDLESS_BONUS_MULT = 1.25   # бонус за иглу растёт в степенной прогрессии
 
 # ---------- смерть ----------
-DEATH_MONEY_KEEP = 0.6      # после смерти остаётся 60% монет
+DEATH_MONEY_KEEP = 0.5      # после смерти остаётся 50% монет
 
 NOTICE_TIME = 2.2
+IDLE_HINT_AFTER = 6.0       # сек бездействия до подсказки
 
 # экранные вспышки: укус — красный, отравление — фиолетовый
 BITE_FLASH_ALPHA = 185

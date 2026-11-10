@@ -5,6 +5,7 @@
 | Файл | Примесь | Ответственность |
 |---|---|---|
 | main.py | — | Точка входа: `Game().run()` |
+| game_config.py | — | Все константы: баланс, вероятности, цвета |
 | game_core.py | — | Класс `Game`: собирает примеси, `__init__`, шрифты, кэш текста |
 | game_field.py | FieldMixin | Поле клеток, цены, иголка, рестарт, уровни |
 | game_health.py | HealthMixin | Укусы, отравление, бинты и противоядия |
@@ -14,10 +15,10 @@
 | game_drawings.py | DrawingsMixin | Рисунки находок и иконки лавки |
 | game_shop.py | ShopMixin | Выдвижная лавка улучшений |
 | game_help.py | HelpMixin | Выдвижная справка «?» |
-| game_screens.py | ScreensMixin | Экраны победы и смерти |
+| game_screens.py | ScreensMixin | Начальный экран, пауза, победа, смерть |
 | game_digging.py | DiggingMixin | Ловушки, находки, копание клетки |
 | game_save.py | SaveMixin | Сохранение/загрузка прогресса (hay_save.json) |
-| game_loop.py | LoopMixin | Обработка событий, клики, главный цикл |
+| game_loop.py | LoopMixin | Меню/игра/пауза, события, клики, цикл, подсказки |
 
 ## Зависимости
 
@@ -47,6 +48,4 @@ main.py -> game_core.py (Game)
    вспышки и соломинки (game_effects), находки рисует game_drawings
 4. Продажа и покупки: game_economy + game_shop; подсказки: game_help
 5. Уровни: `next_level` (game_field); финалы: game_screens
-
-## Отладка
 

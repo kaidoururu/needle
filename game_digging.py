@@ -37,6 +37,9 @@ class DiggingMixin:
             old = self.health
             self.poison_time = self.poison_duration()
             self.poison_flash = 1.0
+            if (not getattr(self, "tut_antidote_done", False)
+                    and self.antidotes > 0):
+                self.tutorial = {"item": "antidote"}
             self.show_notice(item)
             self.notice["sub"] = ("Отравление! Здоровье: %d -> %d"
                                   % (int(round(old)),
@@ -59,6 +62,9 @@ class DiggingMixin:
             if self.health <= 0:
                 self.health = 0
                 self.dead = True
+            if (not getattr(self, "tut_bandage_done", False)
+                    and self.bandages > 0 and self.health > 0):
+                self.tutorial = {"item": "bandage"}
         elif item == "bandage":
             cap = self.bandage_cap()
             if self.bandages < cap:
@@ -80,15 +86,10 @@ class DiggingMixin:
         elif item == "compass":
             col = self.needle_idx % self.cols
             row = self.needle_idx // self.cols
-            north = row < self.rows / 2
-            west = col < self.cols / 2
-            name = {(True, True): "северо-запад",
-                    (True, False): "северо-восток",
-                    (False, True): "юго-запад",
-                    (False, False): "юго-восток"}[(north, west)]
-            self.compass_hint = "Компас: игла в %s стога" % name
+            self.compass_quadrant = (row < self.rows / 2,
+                                     col < self.cols / 2)
             self.show_notice(item)
-            self.notice["sub"] = self.compass_hint
+            self.notice["sub"] = "Игла в подсвеченной зоне стога"
         elif item == "magnet":
             self.magnet_ready = True
             self.show_notice(item)
@@ -96,7 +97,9 @@ class DiggingMixin:
         elif item == "clover":
             self.clover_time = CLOVER_TIME
             self.show_notice(item)
-            self.notice["sub"] = "30 секунд: шанс 50% спастись от ловушки"
+            self.notice["sub"] = (
+                "%d секунд: шанс %d%% спастись от ловушек"
+                % (int(CLOVER_TIME), int(CLOVER_SAVE_CHANCE * 100)))
 
     # ---------- копание ----------
 
@@ -175,6 +178,7 @@ class DiggingMixin:
                 self.needle_found = True
                 self.money += self.needle_bonus()
                 self.compass_hint = None
+                self.compass_quadrant = None
                 if self.golden_needle:
                     self.add_message("ЗОЛОТАЯ ИГЛА! Бонус x%d"
                                      % GOLD_NEEDLE_BONUS_MULT, GOLD)

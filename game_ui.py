@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-# Интерфейс: HUD, кнопки, полосы здоровья и сил, монеты
+# Интерфейс: HUD, кнопки, полосы здоровья и сил, монеты,
+# крутящиеся значки бонусов, обучение и подсказка простоя
 
 import math
 import random
@@ -9,7 +10,7 @@ from game_config import *
 
 
 class UIMixin:
-    """Интерфейс: HUD, кнопки, полосы здоровья и сил, монеты"""
+    """Интерфейс: HUD, кнопки, полосы, значки бонусов, подсказки"""
 
 
     # ---------- геометрия интерфейса ----------
@@ -25,6 +26,7 @@ class UIMixin:
         self.bandage_btn = pygame.Rect(w - 134, hud_top + 98, 92, 56)
         self.antidote_btn = pygame.Rect(w - 234, hud_top + 98, 92, 56)
         self.help_button = pygame.Rect(w - 300, hud_top + 96, 58, 58)
+        self.pause_button = pygame.Rect(w - 370, hud_top + 96, 58, 58)
 
         self.shop_panel_h = min(SHOP_H, h)
         self.shop_panels = []
@@ -58,7 +60,6 @@ class UIMixin:
 
 
 
-    # ---------- вспомогательная отрисовка ----------
     def draw_button(self, rect, text, enabled=True, ok=False, next_btn=False):
         hovered = rect.collidepoint(pygame.mouse.get_pos())
         if not enabled:
@@ -93,7 +94,6 @@ class UIMixin:
         if fixed_color is not None:
             r, g, b = fixed_color
             if pulse and ratio < 0.15:
-                # пульсирует ТОЛЬКО яркость — цвет не меняется
                 p = 0.5 + 0.5 * math.sin(self.time * 8.0)
                 factor = 0.55 + 0.45 * p
                 r, g, b = int(r * factor), int(g * factor), int(b * factor)
@@ -137,9 +137,35 @@ class UIMixin:
             cn.set_alpha(alpha)
         surf.blit(cn, (int(cx - r), int(cy - r)))
 
-    # ---------- рисунки находок ----------
 
 
+    def draw_pill_button(self, rect, kind, can_use, count_text):
+        hovered = rect.collidepoint(pygame.mouse.get_pos())
+        color = BTN_OK_HOVER if (hovered and can_use) else (
+            BTN_OK if can_use else BTN_DISABLED)
+        pygame.draw.rect(self.screen, color, rect, border_radius=10)
+        pygame.draw.rect(self.screen, (30, 20, 10), rect, 2,
+                         border_radius=10)
+        icon_d = rect.h - 10
+        draw = self.draw_bandage if kind == "bandage" else self.draw_antidote
+        draw(self.screen, rect.x + icon_d // 2 + 5, rect.centery, icon_d)
+        count = self.txt(count_text, self.font_small, TEXT)
+        self.screen.blit(count,
+                         (rect.x + icon_d + 8,
+                          rect.centery - count.get_height() // 2))
+
+
+
+    def draw_pill_icon(self, rect, kind):
+        icon_d = rect.h - 10
+        if kind == "bandage":
+            self.draw_bandage(self.screen, rect.x + icon_d // 2 + 5,
+                              rect.centery, icon_d)
+        else:
+            self.draw_antidote(self.screen, rect.x + icon_d // 2 + 5,
+                               rect.centery, icon_d)
+
+    # ---------- HUD ----------
 
     def draw_hud(self):
         w, h = self.screen.get_size()
@@ -147,103 +173,166 @@ class UIMixin:
         pygame.draw.rect(self.screen, HUD_BG, (0, hud_top, w, HUD_H))
         pygame.draw.rect(self.screen, PANEL_EDGE, (0, hud_top, w, 4))
 
-        if self.level > MAX_LEVEL:
-            lvl_text = "Бесконечный стог: ур.%d" % self.level
-        else:
-            lvl_text = "Уровень: %d/%d" % (self.level, MAX_LEVEL)
-        hud_text = ("%s   Деньги: %d   Сено: %d пучков"
-                    % (lvl_text, self.money, self.hay))
+        hud_text = ("Уровень: %d   Деньги: %d   Сено: %d пучков"
+                    % (self.level, self.money, self.hay))
         self.screen.blit(self.txt(hud_text, self.font_small),
                          (10, hud_top + 10))
 
-        # полоска сил — всегда синяя
-        stamina_label = "Силы"
         self.draw_bar(pygame.Rect(10, hud_top + 38, w - 20, 24),
                       self.stamina / self.max_stamina, pulse=True,
-                      fixed_color=STAMINA_BLUE,
-                      label_text=stamina_label)
+                      fixed_color=STAMINA_BLUE, label_text="Силы")
 
-        poisoned = self.poison_time > 0
-        if poisoned:
+        if self.poison_time > 0:
             health_label = "Здоровье: ОТРАВЛЕНИЕ!"
-            self.draw_bar(pygame.Rect(10, hud_top + 70, w - 20, 24),
-                          max(0.0, self.health) / self.max_health,
-                          pulse=True, fixed_color=POISON_PURPLE,
-                          label_text=health_label)
+            color = POISON_PURPLE
         else:
             health_label = "Здоровье"
-            self.draw_bar(pygame.Rect(10, hud_top + 70, w - 20, 24),
-                          max(0.0, self.health) / self.max_health,
-                          pulse=True, fixed_color=HEALTH_RED,
-                          label_text=health_label)
+            color = HEALTH_RED
+        self.draw_bar(pygame.Rect(10, hud_top + 70, w - 20, 24),
+                      max(0.0, self.health) / self.max_health,
+                      pulse=True, fixed_color=color,
+                      label_text=health_label)
 
-        if self.compass_hint:
-            hint = self.compass_hint
-        elif self.magnet_ready:
-            hint = "Магнит готов: следующий рывок вдвое больше"
-        elif self.clover_time > 0:
-            hint = "Клевер: %d сек защиты от ловушек" % int(
-                self.clover_time + 1)
-        else:
-            hint = "Продавайте сено и прокачивайтесь в лавке"
-        self.screen.blit(self.txt(hint, self.font_small),
-                         (10, hud_top + 104))
-
-        sell_text = "Продать сено (+%d)" % self.hay_value
-        self.draw_button(self.main_buttons["sell"], sell_text,
+        self.draw_button(self.main_buttons["sell"],
+                         "Продать сено (+%d)" % self.hay_value,
                          self.hay > 0)
         self.draw_button(self.main_buttons["shop"], "Лавка улучшений")
 
         if self.needle_found:
-            if self.level >= MAX_LEVEL:
-                next_text = "Бесконечный стог ->"
-            else:
-                next_text = "Уровень %d ->" % (self.level + 1)
-            self.draw_button(self.main_buttons["next"], next_text,
+            self.draw_button(self.main_buttons["next"],
+                             "Уровень %d ->" % (self.level + 1),
                              next_btn=True)
-        elif self.level >= MAX_LEVEL:
-            self.draw_button(self.main_buttons["next"], "Макс. уровень",
-                             enabled=False)
         else:
             self.draw_button(self.main_buttons["next"],
                              "Найдите иголку", enabled=False)
 
-        # иконка бинтов
-        rect = self.bandage_btn
-        can_use = self.bandages > 0 and self.health < self.max_health
+        # иконка бинтов: всегда видно, сколько из скольких
+        self.draw_pill_button(
+            self.bandage_btn, "bandage",
+            self.bandages > 0 and self.health < self.max_health,
+            "%d/%d" % (self.bandages, self.bandage_cap()))
+
+        # иконка противоядия: всегда видно, сколько из скольких
+        self.draw_pill_button(
+            self.antidote_btn, "antidote",
+            self.antidotes > 0 and self.poison_time > 0,
+            "%d/%d" % (self.antidotes, self.antidote_cap()))
+
+        self.draw_pause_button()
+
+    # ---------- кнопка паузы ----------
+
+    def draw_pause_button(self):
+        rect = self.pause_button
         hovered = rect.collidepoint(pygame.mouse.get_pos())
-        color = BTN_OK_HOVER if (hovered and can_use) else (
-            BTN_OK if can_use else BTN_DISABLED)
+        color = BTN_HOVER if hovered else BTN
         pygame.draw.rect(self.screen, color, rect, border_radius=10)
         pygame.draw.rect(self.screen, (30, 20, 10), rect, 2,
                          border_radius=10)
-        icon_d = rect.h - 10
-        self.draw_bandage(self.screen,
-                          rect.x + icon_d // 2 + 5,
-                          rect.centery, icon_d)
-        count_text = "%d" % self.bandages
-        count = self.txt(count_text, self.font_small, TEXT)
-        self.screen.blit(count,
-                         (rect.x + icon_d + 8,
-                          rect.centery - count.get_height() // 2))
+        label = self.txt("II", self.font_small)
+        self.screen.blit(label, label.get_rect(center=rect.center))
 
-        # иконка противоядия
-        rect = self.antidote_btn
-        can_use = self.antidotes > 0 and self.poison_time > 0
-        hovered = rect.collidepoint(pygame.mouse.get_pos())
-        color = BTN_OK_HOVER if (hovered and can_use) else (
-            BTN_OK if can_use else BTN_DISABLED)
-        pygame.draw.rect(self.screen, color, rect, border_radius=10)
-        pygame.draw.rect(self.screen, (30, 20, 10), rect, 2,
-                         border_radius=10)
-        icon_d = rect.h - 10
-        self.draw_antidote(self.screen,
-                           rect.x + icon_d // 2 + 5,
-                           rect.centery, icon_d)
-        count_text = "%d" % self.antidotes
-        count = self.txt(count_text, self.font_small, TEXT)
-        self.screen.blit(count,
-                         (rect.x + icon_d + 8,
-                          rect.centery - count.get_height() // 2))
+    # ---------- крутящиеся значки активных бонусов ----------
 
-    # ---------- выдвижная справка «?» ----------
+    def draw_bonus_icons(self):
+        if self.won or self.dead:
+            return
+        icons = []
+        if self.compass_quadrant:
+            icons.append(("compass", None))
+        if self.magnet_ready:
+            icons.append(("magnet", None))
+        if self.clover_time > 0:
+            icons.append(("clover", self.clover_time / CLOVER_TIME))
+        if not icons:
+            return
+        fr = self.field_rect
+        d = 52
+        for k, (name, frac) in enumerate(icons):
+            cx = fr.right - 40 - k * (d + 12)
+            cy = fr.bottom - 40
+            ring = pygame.Surface((d + 16, d + 16), pygame.SRCALPHA)
+            pygame.draw.circle(ring, (25, 18, 10, 205),
+                               ((d + 16) // 2, (d + 16) // 2),
+                               (d + 16) // 2)
+            pygame.draw.circle(ring, (255, 200, 60, 235),
+                               ((d + 16) // 2, (d + 16) // 2),
+                               (d + 16) // 2, 3)
+            self.screen.blit(ring, (int(cx - (d + 16) / 2),
+                                    int(cy - (d + 16) / 2)))
+            icon = self.icon_cache.get((name, d))
+            if icon is None:
+                icon = self.shop_icon(name, d)
+            rot = pygame.transform.rotate(icon, -self.time * 90.0)
+            self.screen.blit(rot, rot.get_rect(center=(int(cx), int(cy))))
+            if frac is not None:
+                rr = d // 2 + 7
+                arc_rect = pygame.Rect(0, 0, 2 * rr, 2 * rr)
+                arc_rect.center = (int(cx), int(cy))
+                pygame.draw.arc(self.screen, (110, 230, 110), arc_rect,
+                                math.pi / 2,
+                                math.pi / 2 + 2 * math.pi * frac, 4)
+
+    # ---------- обучение: подсветка бинта/противоядия ----------
+
+    def draw_tutorial(self):
+        if not self.tutorial or self.won or self.dead:
+            return
+        item = self.tutorial.get("item")
+        rect = self.bandage_btn if item == "bandage" else self.antidote_btn
+        p = 0.5 + 0.5 * math.sin(self.time * 6.0)
+        grow = int(6 * p)
+        pygame.draw.rect(self.screen, GOLD,
+                         rect.inflate(grow * 2, grow * 2), 4,
+                         border_radius=12)
+        if item == "bandage":
+            text = "Нажмите на бинт, чтобы вылечиться!"
+        else:
+            text = "Нажмите на противоядие, чтобы вылечиться!"
+        surf = self.font_mid.render(text, True, GOLD)
+        w = self.screen.get_width()
+        y = self.field_rect.top + 110
+        pill = pygame.Surface((surf.get_width() + 26,
+                               surf.get_height() + 16), pygame.SRCALPHA)
+        pygame.draw.rect(pill, MSG_BG + (230,), pill.get_rect(),
+                         border_radius=12)
+        self.screen.blit(pill, pill.get_rect(center=(w // 2, y)))
+        self.screen.blit(surf, surf.get_rect(center=(w // 2, y)))
+        arrow_y = rect.top - 30
+        pygame.draw.polygon(self.screen, GOLD,
+                            [(rect.centerx, rect.top - 6),
+                             (rect.centerx - 11, arrow_y),
+                             (rect.centerx + 11, arrow_y)])
+
+    # ---------- подсказка простоя ----------
+
+    def draw_idle_hint(self):
+        hint = self.idle_hint
+        if not hint or self.won or self.dead:
+            return
+        w = self.screen.get_width()
+        surf = self.font_mid.render(hint["text"], True, GOLD)
+        y = self.field_rect.top + 60
+        pill = pygame.Surface((surf.get_width() + 26,
+                               surf.get_height() + 16), pygame.SRCALPHA)
+        pygame.draw.rect(pill, MSG_BG + (230,), pill.get_rect(),
+                         border_radius=12)
+        pygame.draw.rect(pill, GOLD + (230,), pill.get_rect(), 2,
+                         border_radius=12)
+        self.screen.blit(pill, pill.get_rect(center=(w // 2, y)))
+        self.screen.blit(surf, surf.get_rect(center=(w // 2, y)))
+        p = 0.5 + 0.5 * math.sin(self.time * 5.0)
+        target = hint.get("target")
+        if target is not None:
+            grow = int(8 * p)
+            pygame.draw.rect(self.screen, GOLD,
+                             target.inflate(grow * 2, grow * 2), 4,
+                             border_radius=10)
+        cell = hint.get("cell")
+        if cell is not None:
+            x = self.field_rect.x + (cell % self.cols) * self.cw
+            yy = self.field_rect.y + (cell // self.cols) * self.ch
+            r = pygame.Rect(int(x), int(yy), int(self.cw), int(self.ch))
+            pygame.draw.rect(self.screen, GOLD,
+                             r.inflate(int(8 * p), int(8 * p)), 3,
+                             border_radius=4)

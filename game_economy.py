@@ -123,31 +123,20 @@ class EconomyMixin:
 
 
 
-    # ---------- описания веток лавки (с цифрами или без) ----------
+    # ---------- описания веток лавки ----------
     def shop_item_info(self, key):
         if key == "shovel":
-            title = "ЛОПАТА"
-            desc = "Копает больше клеток за рывок"
-            return title, desc
+            return "ЛОПАТА", "Копает больше клеток за рывок"
         if key == "cap":
-            title = "ЗАПАС СИЛ"
-            desc = "Больше сил на рывки"
-            return title, desc
+            return "ЗАПАС СИЛ", "Больше сил на рывки"
         if key == "regen":
-            title = "СКОРОСТЬ СИЛ"
-            desc = "Силы восстанавливаются быстрее"
-            return title, desc
+            return "СКОРОСТЬ СИЛ", "Силы восстанавливаются быстрее"
         if key == "price":
-            title = "ЦЕНА СЕНА"
-            desc = "Сено продается дороже"
-            return title, desc
+            return "ЦЕНА СЕНА", "Сено продается дороже"
         if key == "health":
-            title = "ЗДОРОВЬЕ"
-            desc = "Больше запас здоровья"
-            return title, desc
+            return "ЗДОРОВЬЕ", "Больше запас здоровья"
         if key == "bnd":
-            title = "АПТЕЧКА"
-            desc = ("Бинтов: %d   Противоядий: %d"
-                    % (self.bandages, self.antidotes))
-            return title, desc
+            return "АПТЕЧКА", ("Бинтов: %d/%d   Противоядий: %d/%d"
+                               % (self.bandages, self.bandage_cap(),
+                                  self.antidotes, self.antidote_cap()))
         return "", ""

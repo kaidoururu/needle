@@ -99,6 +99,19 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         self.field_surf = None
         self.field_dirty = True
 
+        # состояния: меню, игра, пауза
+        self.state = "menu"
+        self.menu_buttons = {}
+        self.pause_buttons = {}
+        self.has_save = False
+
+        # обучение и подсказки простоя
+        self.tut_bandage_done = False
+        self.tut_antidote_done = False
+        self.tutorial = None
+        self.idle_time = 0.0
+        self.idle_hint = None
+
         self.main_buttons = {}
         self.shop_buttons = {}
         self.win_buttons = {}
@@ -137,5 +150,47 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
             surf = font.render(string, True, color)
             self.text_cache[key] = surf
         return surf
+
+    def start_new_game(self):
+        """Полный сброс прогресса: уровень 1, кошелёк пуст."""
+        self.level = 1
+        self.money = 0
+        self.hay = 0
+        self.hay_value = 0
+        self.shovel = 1
+        self.cap_lvl = 0
+        self.regen_lvl = 0
+        self.price_lvl = 0
+        self.health_lvl = 0
+        self.bnd_lvl = 0
+        self.bandages = 0
+        self.antidotes = 0
+        self.poison_time = 0.0
+        self.max_stamina = float(STAMINA_BASE)
+        self.stamina = self.max_stamina
+        self.max_health = float(HEALTH_BASE)
+        self.health = self.max_health
+        self.compass_hint = None
+        self.compass_quadrant = None
+        self.magnet_ready = False
+        self.clover_time = 0.0
+        self.streak = 0
+        self.won = False
+        self.dead = False
+        self.needle_found = False
+        self.digs = 0
+        self.bite_flash = 0.0
+        self.poison_flash = 0.0
+        self.messages = []
+        self.notice = None
+        self.straws = []
+        self.tut_bandage_done = False
+        self.tut_antidote_done = False
+        self.tutorial = None
+        self.idle_time = 0.0
+        self.idle_hint = None
+        self.build_field()
+        self.field_dirty = True
+        self.save_game()
 
     # ---------- стог ----------
