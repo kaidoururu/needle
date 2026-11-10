@@ -34,7 +34,8 @@ class HealthMixin:
 
 
     def poison_duration(self):
-        return POISON_DUR_BASE + POISON_DUR_STEP * self.level
+        return min(POISON_DUR_MAX,
+                   POISON_DUR_BASE + POISON_DUR_STEP * self.level)
 
 
 

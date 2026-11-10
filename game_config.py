@@ -17,12 +17,12 @@ except ImportError:
 # ---------- настройки ----------
 STAMINA_BASE = 20
 STAMINA_STEP = 4
-REGEN_BASE = 2.5
+REGEN_BASE = 1.2
 REGEN_STEP = 1.0
 MAX_LEVEL = 10
 NEEDLE_BONUS_BASE = 300
 SHOP_H = 970           # высота лавки: 6 панелей + шапка
-HELP_H = 1000
+HELP_H = 1200   # высота справки выросла: новые разделы
 SLIDE_SPEED = 4.0
 SHOP_PANEL_H = 120
 SHOP_GAP = 10
@@ -48,6 +48,7 @@ POISON_RATE_BASE = 0.5
 POISON_RATE_STEP = 0.4
 POISON_DUR_BASE = 45.0
 POISON_DUR_STEP = 6.0
+POISON_DUR_MAX = 60.0   # яд дольше минуты не мучает
 
 # аптека
 BANDAGE_CAP_BASE = 2
@@ -70,16 +71,43 @@ P_ANIMAL_BASE = 0.008
 P_BANDAGE_BASE = 0.020
 P_ANTIDOTE_BASE = 0.012
 TRAP_LIGHT_MULT = 0.5
-TRAP_DARK_MULT = 3.0
+TRAP_DARK_MULT = 2.5
 BANDAGE_LIGHT_MULT = 1.6
-BANDAGE_DARK_MULT = 0.1
+BANDAGE_DARK_MULT = 0.2
 SHADE_POWER = 1.6
 
 STONE_PENALTY = 1
+STONE_IMMUNE_LVL = 4     # с этой лопаты камень не откатывает уровень
+STONE_MONEY_PENALTY = 10 # на максимальной лопате камень бьёт по кошельку
 
 # приоритет находок за один рывок: чем меньше число, тем «хуже»
 ITEM_PRIORITY = {"stone": 0, "animal": 1, "plant": 2,
-                 "bandage": 3, "antidote": 4}
+                 "bandage": 3, "antidote": 4,
+                 "compass": 5, "magnet": 5, "clover": 5}
+RARE_ITEMS = ("compass", "magnet", "clover")
+
+# ---------- редкие находки ----------
+P_COMPASS = 0.004
+P_MAGNET = 0.003
+P_CLOVER = 0.004
+CLOVER_TIME = 30.0         # сколько секунд действует клевер
+CLOVER_SAVE_CHANCE = 0.5   # шанс спастись от сработавшей ловушки
+MAGNET_MULT = 2            # во сколько раз больше следующий рывок
+
+# ---------- золотая игла ----------
+GOLD_NEEDLE_ONE_IN = 15    # каждый N-й стог
+GOLD_NEEDLE_BONUS_MULT = 5
+
+# ---------- серии рывков ----------
+STREAK_GOAL = 10
+STREAK_BONUS_BASE = 50     # x уровень монет за каждые 10 чистых рывков
+
+# ---------- бесконечный стог ----------
+ENDLESS_TRAP_GROWTH = 0.05  # +5% ловушек за уровень после MAX_LEVEL
+ENDLESS_BONUS_MULT = 1.25   # бонус за иглу растёт в степенной прогрессии
+
+# ---------- смерть ----------
+DEATH_MONEY_KEEP = 0.6      # после смерти остаётся 60% монет
 
 NOTICE_TIME = 2.2
 

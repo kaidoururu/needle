@@ -35,6 +35,13 @@ class FieldMixin:
         return int(round(self.cell_base_price(shade) * self.price_mult()))
 
 
+    def trap_growth(self):
+        """Множитель ловушек: в бесконечном стоге растёт."""
+        if self.level <= MAX_LEVEL:
+            return 1.0
+        return 1.0 + ENDLESS_TRAP_GROWTH * (self.level - MAX_LEVEL)
+
+
 
     def make_cell_item(self, shade):
         darkness = 1.0 - shade
@@ -42,9 +49,10 @@ class FieldMixin:
                                        - TRAP_LIGHT_MULT) * darkness
         find_mult = BANDAGE_LIGHT_MULT + (BANDAGE_DARK_MULT
                                           - BANDAGE_LIGHT_MULT) * darkness
-        p_stone = P_STONE_BASE * trap_mult
-        p_plant = P_PLANT_BASE * trap_mult
-        p_animal = P_ANIMAL_BASE * trap_mult
+        grow = self.trap_growth()
+        p_stone = P_STONE_BASE * trap_mult * grow
+        p_plant = P_PLANT_BASE * trap_mult * grow
+        p_animal = P_ANIMAL_BASE * trap_mult * grow
         p_bandage = P_BANDAGE_BASE * find_mult
         p_antidote = P_ANTIDOTE_BASE * find_mult
 
@@ -59,6 +67,14 @@ class FieldMixin:
             return "bandage"
         if roll < (p_stone + p_plant + p_animal + p_bandage + p_antidote):
             return "antidote"
+        # редкие находки: независимый бросок, ловушкам не мешают
+        rare_roll = random.random()
+        if rare_roll < P_COMPASS:
+            return "compass"
+        if rare_roll < P_COMPASS + P_MAGNET:
+            return "magnet"
+        if rare_roll < P_COMPASS + P_MAGNET + P_CLOVER:
+            return "clover"
         return None
 
 
@@ -88,6 +104,8 @@ class FieldMixin:
                                "item": self.make_cell_item(shade)})
         self.needle_idx = random.randrange(n)
         self.cells[self.needle_idx]["item"] = None
+        self.golden_needle = (random.randrange(GOLD_NEEDLE_ONE_IN) == 0)
+        self.compass_hint = None   # игла переложена — старая подсказка врёт
         self.field_dirty = True
 
 
@@ -98,6 +116,8 @@ class FieldMixin:
             c["dug"] = False
         self.needle_idx = random.randrange(len(self.cells))
         self.cells[self.needle_idx]["item"] = None
+        self.golden_needle = (random.randrange(GOLD_NEEDLE_ONE_IN) == 0)
+        self.compass_hint = None
         self.won = False
         self.dead = False
         self.needle_found = False
@@ -112,17 +132,24 @@ class FieldMixin:
 
 
     def next_level(self):
-        if self.level < MAX_LEVEL and self.needle_found:
-            self.level += 1
-            self.needle_found = False
-            self.won = False
-            self.digs = 0
-            self.stamina = self.max_stamina
-            self.health = self.max_health
-            self.poison_time = 0.0
-            self.bite_flash = 0.0
-            self.poison_flash = 0.0
-            self.build_field()
+        if not self.needle_found:
+            return
+        endless = self.level >= MAX_LEVEL
+        self.level += 1
+        self.needle_found = False
+        self.won = False
+        self.digs = 0
+        self.stamina = self.max_stamina
+        self.health = self.max_health
+        self.poison_time = 0.0
+        self.bite_flash = 0.0
+        self.poison_flash = 0.0
+        self.build_field()
+        if endless:
+            self.add_message("Бесконечный стог: уровень %d! Ловушки "
+                             "злее, бонус за иглу растёт" % self.level,
+                             BLUE_MSG)
+        else:
             self.add_message("Уровень %d! Клеток больше, ловушки злее"
                              % self.level, BLUE_MSG)
 
@@ -165,16 +192,25 @@ class FieldMixin:
                         self.draw_animal(surf, cx, cy, icon_d)
                     elif c["item"] == "bandage":
                         self.draw_bandage(surf, cx, cy, icon_d)
-                    else:
+                    elif c["item"] == "antidote":
                         self.draw_antidote(surf, cx, cy, icon_d)
+                    elif c["item"] == "compass":
+                        self.draw_compass(surf, cx, cy, icon_d)
+                    elif c["item"] == "magnet":
+                        self.draw_magnet(surf, cx, cy, icon_d)
+                    elif c["item"] == "clover":
+                        self.draw_clover(surf, cx, cy, icon_d)
 
         if self.won:
             i = self.needle_idx
             nx = (i % self.cols) * self.cw + self.cw / 2
             ny = (i // self.cols) * self.ch + self.ch / 2
-            pygame.draw.line(surf, SILVER,
+            needle_color = GOLD if self.golden_needle else SILVER
+            pygame.draw.line(surf, needle_color,
                              (nx - 4, ny - self.ch * 0.4),
                              (nx + 4, ny + self.ch * 0.4), 4)
+            pygame.draw.circle(surf, needle_color,
+                               (int(nx - 4), int(ny + self.ch * 0.4)), 4)
 
         self.field_surf = surf
         self.field_dirty = False

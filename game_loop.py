@@ -17,12 +17,15 @@ class LoopMixin:
             for name, rect in self.death_buttons.items():
                 if rect.collidepoint(pos):
                     if name == "continue":
-                        self.money = 0
-                        self.hay = 0
-                        self.hay_value = 0
+                        lost = int(self.money * (1.0 - DEATH_MONEY_KEEP))
+                        self.money = int(self.money * DEATH_MONEY_KEEP)
                         self.stamina = 0.0
                         self.health = self.max_health
                         self.poison_time = 0.0
+                        self.clover_time = 0.0
+                        self.compass_hint = None
+                        self.magnet_ready = False
+                        self.streak = 0
                         self.bandages = min(self.bandages,
                                             self.bandage_cap())
                         self.antidotes = min(self.antidotes,
@@ -35,10 +38,11 @@ class LoopMixin:
                         self.dead = False
                         self.bite_flash = 0.0
                         self.poison_flash = 0.0
+                        self.save_game()
                         self.add_message(
-                            "Вы возродились. Уровень %d начался заново, "
-                            "монет и сена нет, силы на нуле" % self.level,
-                            RED)
+                            "Вы возродились. Потеряно %d монет, сено "
+                            "сохранилось. Уровень %d заново, силы на нуле"
+                            % (lost, self.level), RED)
                     return
             return
 
@@ -102,7 +106,7 @@ class LoopMixin:
                 elif name == "shop":
                     self.open_shop()
                 elif name == "next":
-                    if self.needle_found and self.level < MAX_LEVEL:
+                    if self.needle_found:
                         self.next_level()
                 return
         self.dig_at(pos)
@@ -121,6 +125,12 @@ class LoopMixin:
             if self.stamina < self.max_stamina:
                 self.stamina = min(self.max_stamina,
                                    self.stamina + self.regen_rate() * dt)
+
+            if self.clover_time > 0:
+                self.clover_time = max(0.0, self.clover_time - dt)
+                if self.clover_time == 0.0:
+                    self.add_message("Клевер больше не действует",
+                                     GREEN_MSG)
 
             if self.poison_time > 0:
                 self.poison_time -= dt
@@ -159,6 +169,7 @@ class LoopMixin:
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
+                    self.save_game()
                     running = False
                 elif event.type == pygame.VIDEORESIZE:
                     self.screen = pygame.display.set_mode(

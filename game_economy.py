@@ -24,7 +24,12 @@ class EconomyMixin:
 
 
     def needle_bonus(self):
-        return NEEDLE_BONUS_BASE * self.level
+        bonus = NEEDLE_BONUS_BASE * self.level
+        if self.level > MAX_LEVEL:
+            bonus *= ENDLESS_BONUS_MULT ** (self.level - MAX_LEVEL)
+        if getattr(self, "golden_needle", False):
+            bonus *= GOLD_NEEDLE_BONUS_MULT
+        return int(bonus)
 
     # --- цены улучшений ---
 
@@ -64,6 +69,7 @@ class EconomyMixin:
             self.money += self.hay_value
             self.hay = 0
             self.hay_value = 0
+            self.save_game()
 
 
 
@@ -111,6 +117,7 @@ class EconomyMixin:
                 bought = True
         if bought:
             self.shop_surf = None
+            self.save_game()
 
     # ---------- геометрия интерфейса ----------
 

@@ -17,6 +17,7 @@
 | game_help.py | HelpMixin | Выдвижная справка «?» |
 | game_screens.py | ScreensMixin | Экраны победы и смерти |
 | game_digging.py | DiggingMixin | Ловушки, находки, копание клетки |
+| game_save.py | SaveMixin | Сохранение/загрузка прогресса (hay_save.json) |
 | game_loop.py | LoopMixin | Обработка событий, клики, главный цикл |
 
 ## Зависимости
@@ -26,6 +27,7 @@ main.py -> game_core.py (Game)
              |
              +-- game_config.py   (константы, импортирует все)
              +-- game_loop.py     (LoopMixin: run, handle_click)
+             +-- game_save.py     (SaveMixin: сохранение прогресса)
              +-- game_digging.py  (DiggingMixin: копание, ловушки)
              +-- game_screens.py  (ScreensMixin: победа/смерть)
              +-- game_help.py     (HelpMixin: справка «?»)

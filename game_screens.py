@@ -27,11 +27,11 @@ class ScreensMixin:
                          (cx + 40, ny - 30), 5)
         pygame.draw.circle(self.screen, SILVER, (cx - 40, ny + 30), 8)
 
-        if self.level >= MAX_LEVEL:
-            level_line = "Это последний уровень стога!"
-        else:
+        if self.level < MAX_LEVEL:
             level_line = "Открыт уровень %d из %d" % (
                 self.level + 1, MAX_LEVEL)
+        else:
+            level_line = "Бесконечный стог открыт! Дальше — без предела"
         if DEBUG:
             stats = [
                 level_line,
@@ -56,6 +56,12 @@ class ScreensMixin:
             self.draw_centered(line, self.font_mid,
                                int(h * 0.24) + 110 + i * 42)
 
+        if self.golden_needle:
+            self.draw_centered(
+                "ЗОЛОТАЯ ИГЛА! Бонус x%d" % GOLD_NEEDLE_BONUS_MULT,
+                self.font_mid, int(h * 0.24) + 110 + len(stats) * 42,
+                GOLD)
+
         bw, bh = 300, 60
         y0 = int(h * 0.68)
         r1 = pygame.Rect(cx - bw - 12, y0, bw, bh)
@@ -67,6 +73,11 @@ class ScreensMixin:
             r3 = pygame.Rect(cx - bw // 2, y0 + bh + 14, bw, bh)
             self.win_buttons["next"] = r3
             self.draw_button(r3, "Следующий уровень ->",
+                             next_btn=True)
+        else:
+            r3 = pygame.Rect(cx - bw // 2, y0 + bh + 14, bw, bh)
+            self.win_buttons["next"] = r3
+            self.draw_button(r3, "Бесконечный стог ->",
                              next_btn=True)
 
     # ---------- экран смерти ----------
@@ -83,19 +94,20 @@ class ScreensMixin:
         cx = w // 2
         self.draw_centered("ВЫ УМЕРЛИ",
                            self.font_big, int(h * 0.28), RED)
+        lost = int(self.money * (1.0 - DEATH_MONEY_KEEP))
         if DEBUG:
             lines = [
                 "Уровень %d: укус сносит %d, яд капает %.1f/сек"
                 % (self.level, self.animal_damage(), self.poison_rate()),
-                "Все монеты (%d) и несохранённое сено (%d пучков) потеряны"
-                % (self.money, self.hay),
+                "Потеряно %d%% монет (%d). Сено сохранено."
+                % (int((1.0 - DEATH_MONEY_KEEP) * 100), lost),
                 "Силы обнулены — придётся ждать восстановления.",
                 "Уровень начнётся заново — стог перевёрнут.",
-                "Улучшения сохраняются.",
+                "Улучшения и сено сохраняются.",
             ]
         else:
             lines = [
-                "Все монеты и несохранённое сено потеряны.",
+                "Потеряно 40% монет. Сено сохранено.",
                 "Силы обнулены — придётся ждать восстановления.",
                 "Уровень начнётся заново — стог перевёрнут.",
                 "Улучшения сохраняются.",

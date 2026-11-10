@@ -306,3 +306,58 @@ class DrawingsMixin:
         return surf
 
     # ---------- кэш картинки стога ----------
+
+
+    def draw_compass(self, surf, cx, cy, d, alpha=None):
+        r = d // 2
+        cp = pygame.Surface((d, d), pygame.SRCALPHA)
+        pygame.draw.circle(cp, (70, 60, 40), (r, r), r)
+        pygame.draw.circle(cp, (235, 220, 185), (r, r), int(r * 0.86))
+        pygame.draw.circle(cp, (70, 60, 40), (r, r), int(r * 0.62))
+        pygame.draw.line(cp, (60, 70, 190),
+                         (r, r - int(r * 0.55)), (r, r + int(r * 0.1)),
+                         max(3, r // 5))
+        pygame.draw.line(cp, (200, 60, 50),
+                         (r, r + int(r * 0.55)), (r, r - int(r * 0.1)),
+                         max(3, r // 5))
+        pygame.draw.circle(cp, (240, 230, 200), (r, r), max(2, r // 5))
+        if alpha is not None:
+            cp.set_alpha(alpha)
+        surf.blit(cp, (int(cx - r), int(cy - r)))
+
+
+
+    def draw_magnet(self, surf, cx, cy, d, alpha=None):
+        r = d // 2
+        mg = pygame.Surface((d, d), pygame.SRCALPHA)
+        lw = max(4, r // 3)
+        pygame.draw.rect(mg, (200, 60, 60),
+                         (r - lw, int(r * 0.25), lw, int(r * 0.75)),
+                         border_radius=lw // 2)
+        pygame.draw.rect(mg, (70, 90, 200),
+                         (r + 1, int(r * 0.25), lw, int(r * 0.75)),
+                         border_radius=lw // 2)
+        pygame.draw.circle(mg, (225, 215, 200),
+                           (r, r + int(r * 0.2)), int(r * 0.72), lw)
+        pygame.draw.rect(mg, (225, 215, 200),
+                         (r - lw - 1, r + int(r * 0.45), lw + 2,
+                          int(r * 0.3)))
+        pygame.draw.rect(mg, (225, 215, 200),
+                         (r + 1, r + int(r * 0.45), lw + 2, int(r * 0.3)))
+        if alpha is not None:
+            mg.set_alpha(alpha)
+        surf.blit(mg, (int(cx - r), int(cy - r)))
+
+
+
+    def draw_clover(self, surf, cx, cy, d, alpha=None):
+        r = d // 2
+        cl = pygame.Surface((d, d), pygame.SRCALPHA)
+        lr = int(r * 0.42)
+        for dx, dy in ((-lr, -lr // 3), (lr, -lr // 3), (0, lr // 2)):
+            pygame.draw.circle(cl, (60, 150, 70), (r + dx, r + dy), lr)
+        pygame.draw.line(cl, (40, 110, 50),
+                         (r, r + lr), (r, r + r - 2), max(3, r // 8))
+        if alpha is not None:
+            cl.set_alpha(alpha)
+        surf.blit(cl, (int(cx - r), int(cy - r)))

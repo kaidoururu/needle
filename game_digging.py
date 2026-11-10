@@ -15,7 +15,16 @@ class DiggingMixin:
     # ---------- ловушки ----------
     def trigger_item(self, item):
         if item == "stone":
-            if self.shovel > 1:
+            if self.shovel >= STONE_IMMUNE_LVL and self.dig_side() >= 7:
+                self.money = max(0, self.money - STONE_MONEY_PENALTY)
+                self.show_notice(item)
+                self.notice["sub"] = ("Лопата крепка: -%d монет"
+                                      % STONE_MONEY_PENALTY)
+            elif self.shovel >= STONE_IMMUNE_LVL:
+                self.show_notice(item)
+                self.notice["sub"] = ("Лопата ур.%d держит удар — "
+                                      "откатов нет" % self.shovel)
+            elif self.shovel > 1:
                 old = self.shovel
                 self.shovel = max(1, self.shovel - STONE_PENALTY)
                 self.show_notice(item)
@@ -76,6 +85,26 @@ class DiggingMixin:
             else:
                 self.show_notice(item)
                 self.notice["sub"] = "Аптечка полна — противоядие потеряно"
+        elif item == "compass":
+            col = self.needle_idx % self.cols
+            row = self.needle_idx // self.cols
+            north = row < self.rows / 2
+            west = col < self.cols / 2
+            name = {(True, True): "северо-запад",
+                    (True, False): "северо-восток",
+                    (False, True): "юго-запад",
+                    (False, False): "юго-восток"}[(north, west)]
+            self.compass_hint = "Компас: игла в %s стога" % name
+            self.show_notice(item)
+            self.notice["sub"] = self.compass_hint
+        elif item == "magnet":
+            self.magnet_ready = True
+            self.show_notice(item)
+            self.notice["sub"] = "Следующий рывок вдвое больше"
+        elif item == "clover":
+            self.clover_time = CLOVER_TIME
+            self.show_notice(item)
+            self.notice["sub"] = "30 секунд: шанс 50% спастись от ловушки"
 
     # ---------- копание ----------
 
@@ -83,17 +112,34 @@ class DiggingMixin:
 
     # ---------- копание ----------
     def resolve_items(self, dug_now):
-        """За один рывок срабатывает только одна, худшая находка.
-        Приоритет: камень -> укус зверя -> растение -> бинт -> противоядие."""
+        """За один рывок срабатывает только одна, худшая базовая находка.
+        Приоритет: камень -> укус зверя -> растение -> бинт -> противоядие.
+        Редкие находки (компас, магнит, клевер) срабатывают всегда и не
+        блокируются ловушками. Возвращает False, если сработала ловушка."""
         found = [i for i in dug_now if self.cells[i]["item"]]
         if not found:
-            return
-        worst = min(found,
-                    key=lambda i: ITEM_PRIORITY[self.cells[i]["item"]])
-        item = self.cells[worst]["item"]
+            return True
+        rare = [i for i in found if self.cells[i]["item"] in RARE_ITEMS]
+        base = [i for i in found if self.cells[i]["item"] not in RARE_ITEMS]
+        rare_items = [self.cells[i]["item"] for i in rare]
+        base_item = None
+        if base:
+            worst = min(base,
+                        key=lambda i: ITEM_PRIORITY[self.cells[i]["item"]])
+            base_item = self.cells[worst]["item"]
         for i in found:
             self.cells[i]["item"] = None
-        self.trigger_item(item)
+        for it in rare_items:
+            self.trigger_item(it)
+        if base_item:
+            if (base_item in ("stone", "animal", "plant")
+                    and self.clover_time > 0
+                    and random.random() < CLOVER_SAVE_CHANCE):
+                self.add_message("Клевер спас от ловушки!", GREEN_MSG)
+                return True
+            self.trigger_item(base_item)
+            return False
+        return True
 
 
 
@@ -103,6 +149,8 @@ class DiggingMixin:
         if not (0 <= cx < self.cols and 0 <= cy < self.rows):
             return
         side = self.dig_side()
+        if self.magnet_ready:
+            side = min(14, side * MAGNET_MULT)
         r = (side - 1) // 2
         targets = []
         for dy in range(-r, side - r):
@@ -134,8 +182,24 @@ class DiggingMixin:
                 self.won = True
                 self.needle_found = True
                 self.money += self.needle_bonus()
+                self.compass_hint = None
+                if self.golden_needle:
+                    self.add_message("ЗОЛОТАЯ ИГЛА! Бонус x%d"
+                                     % GOLD_NEEDLE_BONUS_MULT, GOLD)
+                self.save_game()
         if dug_now:
             self.digs += 1
+            self.magnet_ready = False
             self.field_dirty = True
             self.spawn_straws(dug_now)
-            self.resolve_items(dug_now)
+            safe = self.resolve_items(dug_now)
+            if safe:
+                self.streak += 1
+                if self.streak % STREAK_GOAL == 0:
+                    bonus = STREAK_BONUS_BASE * self.level
+                    self.money += bonus
+                    self.add_message("Серия: %d рывков без ловушек, "
+                                     "+%d монет" % (self.streak, bonus),
+                                     GOLD)
+            else:
+                self.streak = 0

@@ -147,14 +147,18 @@ class UIMixin:
         pygame.draw.rect(self.screen, HUD_BG, (0, hud_top, w, HUD_H))
         pygame.draw.rect(self.screen, PANEL_EDGE, (0, hud_top, w, 4))
 
+        if self.level > MAX_LEVEL:
+            lvl_text = "Бесконечный стог: ур.%d" % self.level
+        else:
+            lvl_text = "Уровень: %d/%d" % (self.level, MAX_LEVEL)
         if DEBUG:
-            hud_text = ("Уровень: %d/%d   Деньги: %d   "
+            hud_text = ("%s   Деньги: %d   "
                         "Сено: %d пучков (%d монет)"
-                        % (self.level, MAX_LEVEL, self.money,
+                        % (lvl_text, self.money,
                            self.hay, self.hay_value))
         else:
-            hud_text = ("Уровень: %d/%d   Деньги: %d   Сено: %d пучков"
-                        % (self.level, MAX_LEVEL, self.money, self.hay))
+            hud_text = ("%s   Деньги: %d   Сено: %d пучков"
+                        % (lvl_text, self.money, self.hay))
         self.screen.blit(self.txt(hud_text, self.font_small),
                          (10, hud_top + 10))
 
@@ -195,7 +199,14 @@ class UIMixin:
                           pulse=True, fixed_color=HEALTH_RED,
                           label_text=health_label)
 
-        if DEBUG:
+        if self.compass_hint:
+            hint = self.compass_hint
+        elif self.magnet_ready:
+            hint = "Магнит готов: следующий рывок вдвое больше"
+        elif self.clover_time > 0:
+            hint = "Клевер: %d сек защиты от ловушек" % int(
+                self.clover_time + 1)
+        elif DEBUG:
             hint = ("Лопата ур.%d (%d×%d)   Цена сена +%d%%"
                     % (self.shovel, self.dig_side(), self.dig_side(),
                        int((self.price_mult() - 1) * 100)))
@@ -209,14 +220,16 @@ class UIMixin:
                          self.hay > 0)
         self.draw_button(self.main_buttons["shop"], "Лавка улучшений")
 
-        if self.level >= MAX_LEVEL:
-            next_text = "Макс. уровень"
-            self.draw_button(self.main_buttons["next"], next_text,
-                             enabled=False)
-        elif self.needle_found:
-            next_text = "Уровень %d ->" % (self.level + 1)
+        if self.needle_found:
+            if self.level >= MAX_LEVEL:
+                next_text = "Бесконечный стог ->"
+            else:
+                next_text = "Уровень %d ->" % (self.level + 1)
             self.draw_button(self.main_buttons["next"], next_text,
                              next_btn=True)
+        elif self.level >= MAX_LEVEL:
+            self.draw_button(self.main_buttons["next"], "Макс. уровень",
+                             enabled=False)
         else:
             self.draw_button(self.main_buttons["next"],
                              "Найдите иголку", enabled=False)

@@ -15,9 +15,12 @@ from game_help import HelpMixin
 from game_screens import ScreensMixin
 from game_digging import DiggingMixin
 from game_loop import LoopMixin
+from game_save import SaveMixin
 
 
-class Game(FieldMixin, HealthMixin, EffectsMixin, EconomyMixin, UIMixin, DrawingsMixin, ShopMixin, HelpMixin, ScreensMixin, DiggingMixin, LoopMixin):
+class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
+           UIMixin, DrawingsMixin, ShopMixin, HelpMixin, ScreensMixin,
+           DiggingMixin, LoopMixin):
     """Игра «Игла в стоге сена»."""
 
     def __init__(self):
@@ -66,6 +69,13 @@ class Game(FieldMixin, HealthMixin, EffectsMixin, EconomyMixin, UIMixin, Drawing
         self.health = self.max_health
         self.digs = 0
 
+        # новые механики: редкие находки, серия, золотая игла
+        self.compass_hint = None
+        self.magnet_ready = False
+        self.clover_time = 0.0
+        self.streak = 0
+        self.golden_needle = False
+
         # вспышки экрана: плотность 0..1, затухают со временем
         self.bite_flash = 0.0
         self.poison_flash = 0.0
@@ -95,6 +105,9 @@ class Game(FieldMixin, HealthMixin, EffectsMixin, EconomyMixin, UIMixin, Drawing
         self.death_buttons = {}
         self.build_field()
         self.build_ui()
+        self.load_game()          # прогресс из hay_save.json
+        self.stamina = self.max_stamina
+        self.health = self.max_health
 
 
 

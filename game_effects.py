@@ -25,6 +25,9 @@ class EffectsMixin:
             "animal": "УКУС ЗВЕРЯ!",
             "bandage": "БИНТ!",
             "antidote": "ПРОТИВОЯДИЕ!",
+            "compass": "КОМПАС!",
+            "magnet": "МАГНИТ!",
+            "clover": "КЛЕВЕР!",
         }
         self.notice = {"item": item, "title": titles.get(item, item),
                        "sub": "", "life": NOTICE_TIME}
@@ -58,10 +61,18 @@ class EffectsMixin:
             self.draw_animal(self.screen, icon_cx, icon_cy, 110, alpha)
         elif n["item"] == "bandage":
             self.draw_bandage(self.screen, icon_cx, icon_cy, 110, alpha)
-        else:
+        elif n["item"] == "antidote":
             self.draw_antidote(self.screen, icon_cx, icon_cy, 110, alpha)
+        elif n["item"] == "compass":
+            self.draw_compass(self.screen, icon_cx, icon_cy, 110, alpha)
+        elif n["item"] == "magnet":
+            self.draw_magnet(self.screen, icon_cx, icon_cy, 110, alpha)
+        elif n["item"] == "clover":
+            self.draw_clover(self.screen, icon_cx, icon_cy, 110, alpha)
 
-        color = GREEN_MSG if n["item"] in ("bandage", "antidote") else RED
+        color = GREEN_MSG if n["item"] in ("bandage", "antidote",
+                                           "compass", "magnet",
+                                           "clover") else RED
         t1 = self.font_big.render(n["title"], True, color)
         t1.set_alpha(alpha)
         self.screen.blit(t1, t1.get_rect(center=(w // 2, py + 178)))
