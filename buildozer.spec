@@ -6,9 +6,10 @@ source.dir = .
 source.include_exts = py,png,jpg
 version = 1.0
 
-# Interlocked pins (tested pygame setup): python3 3.10.12 + pyjnius 1.5.0 +
-# kivy 2.3.0 + p4a 2023.5.21 (pinned in the workflow). Do not change one alone.
-requirements = python3==3.10.12,hostpython3==3.10.12,pyjnius==1.5.0,kivy==2.3.0,pygame
+# Proven pins: python 3.10.12 (pygame breaks on 3.11+), pygame 2.6.1, pyjnius 1.6.1
+# (1.5.0 fails with PYX_FILES under the pip build backend; 1.6.1 is the version
+# python-for-android master itself builds daily).
+requirements = python3==3.10.12,hostpython3==3.10.12,pygame==2.6.1,pyjnius==1.6.1
 
 orientation = portrait
 fullscreen = True
