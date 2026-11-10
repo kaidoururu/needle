@@ -6,11 +6,12 @@ on:
   workflow_dispatch:
 
 env:
-  # pyjnius 1.5.0 cythonizes its .pyx sources only when USE_CYTHON is set;
-  # without it its setup.py fails with
-  # "NameError: name 'PYX_FILES' is not defined" in the pip build backend.
+  # Use the SDK and NDK preinstalled on the GitHub runner.
+  # No dl.google.com downloads at all — that is what kept failing.
+  APP_ANDROID_SDK_PATH: /usr/local/lib/android/sdk
+  APP_ANDROID_NDK_PATH: /usr/local/lib/android/sdk/ndk/27.3.13750724
+  # pyjnius 1.5.0 needs these to build with pinned Cython 0.29.x
   USE_CYTHON: "1"
-  # let the pip build backend see the pinned Cython instead of an isolated env
   PIP_NO_BUILD_ISOLATION: "1"
 
 jobs:
@@ -22,11 +23,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
-
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
 
       - name: Install build dependencies
         run: |
@@ -43,35 +39,6 @@ jobs:
           echo "$REQ" | grep -q "python3==3.10.12" || { echo "::error::buildozer.spec in repo is outdated (no pinned python3)"; exit 1; }
           echo "$REQ" | grep -q "pyjnius==1.5.0" || { echo "::error::buildozer.spec in repo is outdated (pyjnius must be pinned to 1.5.0)"; exit 1; }
           echo "Spec OK: pinned requirements found."
-
-      - name: Pre-download NDK with retries
-        run: |
-          set -e
-          NDK_ZIP="${HOME}/.buildozer/android/platform/android-ndk-r28c-linux.zip"
-          NDK_DIR="${HOME}/.buildozer/android/platform/android-ndk-r28c"
-          if [ -d "$NDK_DIR" ] && [ -f "$NDK_DIR/ndk-build" ]; then
-            echo "NDK r28c already present, skipping download."
-            exit 0
-          fi
-          for ATTEMPT in 1 2 3; do
-            echo "NDK download attempt $ATTEMPT of 3"
-            rm -f "$NDK_ZIP"
-            rm -rf "$NDK_DIR"
-            if wget -q --tries=3 --timeout=60 \
-                 "https://dl.google.com/android/repository/android-ndk-r28c-linux.zip" \
-                 -O "$NDK_ZIP"; then
-              if unzip -tq "$NDK_ZIP" > /dev/null 2>&1; then
-                unzip -q "$NDK_ZIP" -d "${HOME}/.buildozer/android/platform/"
-                echo "NDK downloaded and verified OK."
-                exit 0
-              fi
-              echo "NDK archive is corrupted, retrying."
-            else
-              echo "NDK download failed, retrying."
-            fi
-          done
-          echo "::error::NDK download failed after 3 attempts"
-          exit 1
 
       - name: Build APK
         run: |
