@@ -48,11 +48,7 @@ class HealthMixin:
             return
         self.bandages -= 1
         self.health = min(self.max_health, self.health + BANDAGE_HEAL)
-        if DEBUG:
-            self.add_message("Бинт использован: +%d здоровья"
-                             % BANDAGE_HEAL, GREEN_MSG)
-        else:
-            self.add_message("Бинт использован", GREEN_MSG)
+        self.add_message("Бинт использован", GREEN_MSG)
 
 
 

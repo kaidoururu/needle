@@ -98,11 +98,7 @@ class LoopMixin:
                     if self.hay > 0:
                         val = self.hay_value
                         self.sell()
-                        if DEBUG:
-                            self.add_message("Сено продано: +%d монет" % val,
-                                             GREEN_MSG)
-                        else:
-                            self.add_message("Сено продано", GREEN_MSG)
+                        self.add_message("Сено продано", GREEN_MSG)
                 elif name == "shop":
                     self.open_shop()
                 elif name == "next":

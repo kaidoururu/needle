@@ -151,23 +151,13 @@ class UIMixin:
             lvl_text = "Бесконечный стог: ур.%d" % self.level
         else:
             lvl_text = "Уровень: %d/%d" % (self.level, MAX_LEVEL)
-        if DEBUG:
-            hud_text = ("%s   Деньги: %d   "
-                        "Сено: %d пучков (%d монет)"
-                        % (lvl_text, self.money,
-                           self.hay, self.hay_value))
-        else:
-            hud_text = ("%s   Деньги: %d   Сено: %d пучков"
-                        % (lvl_text, self.money, self.hay))
+        hud_text = ("%s   Деньги: %d   Сено: %d пучков"
+                    % (lvl_text, self.money, self.hay))
         self.screen.blit(self.txt(hud_text, self.font_small),
                          (10, hud_top + 10))
 
         # полоска сил — всегда синяя
-        if DEBUG:
-            stamina_label = ("Силы: %d/%d"
-                             % (int(self.stamina), int(self.max_stamina)))
-        else:
-            stamina_label = "Силы"
+        stamina_label = "Силы"
         self.draw_bar(pygame.Rect(10, hud_top + 38, w - 20, 24),
                       self.stamina / self.max_stamina, pulse=True,
                       fixed_color=STAMINA_BLUE,
@@ -175,25 +165,13 @@ class UIMixin:
 
         poisoned = self.poison_time > 0
         if poisoned:
-            if DEBUG:
-                health_label = (
-                    "Здоровье: %d/%d   ОТРАВЛЕНИЕ %d сек (-%.1f/сек)"
-                    % (int(max(0, self.health)), int(self.max_health),
-                       int(self.poison_time) + 1, self.poison_rate()))
-            else:
-                health_label = "Здоровье: ОТРАВЛЕНИЕ!"
+            health_label = "Здоровье: ОТРАВЛЕНИЕ!"
             self.draw_bar(pygame.Rect(10, hud_top + 70, w - 20, 24),
                           max(0.0, self.health) / self.max_health,
                           pulse=True, fixed_color=POISON_PURPLE,
                           label_text=health_label)
         else:
-            if DEBUG:
-                health_label = ("Здоровье: %d/%d   Укус зверя: -%d"
-                                % (int(max(0, self.health)),
-                                   int(self.max_health),
-                                   self.animal_damage()))
-            else:
-                health_label = "Здоровье"
+            health_label = "Здоровье"
             self.draw_bar(pygame.Rect(10, hud_top + 70, w - 20, 24),
                           max(0.0, self.health) / self.max_health,
                           pulse=True, fixed_color=HEALTH_RED,
@@ -206,10 +184,6 @@ class UIMixin:
         elif self.clover_time > 0:
             hint = "Клевер: %d сек защиты от ловушек" % int(
                 self.clover_time + 1)
-        elif DEBUG:
-            hint = ("Лопата ур.%d (%d×%d)   Цена сена +%d%%"
-                    % (self.shovel, self.dig_side(), self.dig_side(),
-                       int((self.price_mult() - 1) * 100)))
         else:
             hint = "Продавайте сено и прокачивайтесь в лавке"
         self.screen.blit(self.txt(hint, self.font_small),
@@ -247,10 +221,7 @@ class UIMixin:
         self.draw_bandage(self.screen,
                           rect.x + icon_d // 2 + 5,
                           rect.centery, icon_d)
-        if DEBUG:
-            count_text = "%d/%d" % (self.bandages, self.bandage_cap())
-        else:
-            count_text = "%d" % self.bandages
+        count_text = "%d" % self.bandages
         count = self.txt(count_text, self.font_small, TEXT)
         self.screen.blit(count,
                          (rect.x + icon_d + 8,
@@ -269,10 +240,7 @@ class UIMixin:
         self.draw_antidote(self.screen,
                            rect.x + icon_d // 2 + 5,
                            rect.centery, icon_d)
-        if DEBUG:
-            count_text = "%d/%d" % (self.antidotes, self.antidote_cap())
-        else:
-            count_text = "%d" % self.antidotes
+        count_text = "%d" % self.antidotes
         count = self.txt(count_text, self.font_small, TEXT)
         self.screen.blit(count,
                          (rect.x + icon_d + 8,

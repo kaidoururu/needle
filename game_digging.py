@@ -64,11 +64,7 @@ class DiggingMixin:
             if self.bandages < cap:
                 self.bandages += 1
                 self.show_notice(item)
-                if DEBUG:
-                    self.notice["sub"] = "+1 бинт в запас (%d/%d)" % (
-                        self.bandages, cap)
-                else:
-                    self.notice["sub"] = "+1 бинт в запас"
+                self.notice["sub"] = "+1 бинт в запас"
             else:
                 self.show_notice(item)
                 self.notice["sub"] = "Карман полон — бинт потерян"
@@ -77,11 +73,7 @@ class DiggingMixin:
             if self.antidotes < cap:
                 self.antidotes += 1
                 self.show_notice(item)
-                if DEBUG:
-                    self.notice["sub"] = "+1 противоядие (%d/%d)" % (
-                        self.antidotes, cap)
-                else:
-                    self.notice["sub"] = "+1 противоядие в запас"
+                self.notice["sub"] = "+1 противоядие в запас"
             else:
                 self.show_notice(item)
                 self.notice["sub"] = "Аптечка полна — противоядие потеряно"

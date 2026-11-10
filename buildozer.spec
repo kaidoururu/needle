@@ -6,8 +6,9 @@ source.dir = .
 source.include_exts = py,png,jpg
 version = 1.0
 
-# Pinned stack: Python 3.10.12 (pygame breaks on 3.11+), pygame 2.6.1, pyjnius 1.6.1
-requirements = python3==3.10.12,hostpython3==3.10.12,pygame==2.6.1,pyjnius==1.6.1
+# Pinned stack proven for pygame builds:
+# python 3.10.12 (pygame breaks on 3.11+), pyjnius 1.5.0 (compiles with Cython 0.29.x)
+requirements = python3==3.10.12,hostpython3==3.10.12,pygame==2.6.1,pyjnius==1.5.0
 
 orientation = portrait
 fullscreen = True

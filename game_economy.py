@@ -127,54 +127,27 @@ class EconomyMixin:
     def shop_item_info(self, key):
         if key == "shovel":
             title = "ЛОПАТА"
-            if DEBUG:
-                desc = ("Копает область %d×%d — но каждая клетка = 1 сила"
-                        % (self.dig_side(), self.dig_side()))
-            else:
-                desc = "Копает больше клеток за рывок"
+            desc = "Копает больше клеток за рывок"
             return title, desc
         if key == "cap":
             title = "ЗАПАС СИЛ"
-            if DEBUG:
-                desc = ("Максимум сил: %d (+%d за уровень)"
-                        % (int(self.max_stamina), STAMINA_STEP))
-            else:
-                desc = "Больше сил на рывки"
+            desc = "Больше сил на рывки"
             return title, desc
         if key == "regen":
             title = "СКОРОСТЬ СИЛ"
-            if DEBUG:
-                desc = ("Восстановление: %.1f/сек (+%.1f за уровень)"
-                        % (self.regen_rate(), REGEN_STEP))
-            else:
-                desc = "Силы восстанавливаются быстрее"
+            desc = "Силы восстанавливаются быстрее"
             return title, desc
         if key == "price":
             title = "ЦЕНА СЕНА"
-            if DEBUG:
-                desc = ("+%d%% к цене пучков (x%.2f -> x%.2f)"
-                        % (int((self.price_mult() - 1) * 100 + 25),
-                           self.price_mult(),
-                           self.price_mult() + 0.25))
-            else:
-                desc = "Сено продается дороже"
+            desc = "Сено продается дороже"
             return title, desc
         if key == "health":
             title = "ЗДОРОВЬЕ"
-            if DEBUG:
-                desc = ("Максимум здоровья: %d (+%d за уровень)"
-                        % (int(self.max_health), HEALTH_STEP))
-            else:
-                desc = "Больше запас здоровья"
+            desc = "Больше запас здоровья"
             return title, desc
         if key == "bnd":
             title = "АПТЕЧКА"
-            if DEBUG:
-                desc = ("Бинты %d/%d, противоядия %d/%d"
-                        % (self.bandages, self.bandage_cap(),
-                           self.antidotes, self.antidote_cap()))
-            else:
-                desc = ("Бинтов: %d   Противоядий: %d"
-                        % (self.bandages, self.antidotes))
+            desc = ("Бинтов: %d   Противоядий: %d"
+                    % (self.bandages, self.antidotes))
             return title, desc
         return "", ""
