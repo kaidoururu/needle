@@ -5,12 +5,6 @@ on:
     branches: [main]
   workflow_dispatch:
 
-env:
-  # pyjnius 1.6.x cannot detect the Cython version when cross-building on
-  # Android; with Cython 3.x used by python-for-android it must be told
-  # explicitly. Without this, jnius.pyx fails to compile.
-  ANDROID_PYJNUS_CYTHON_3: "1"
-
 jobs:
   build:
     runs-on: ubuntu-22.04
@@ -32,14 +26,14 @@ jobs:
           sudo apt-get install -y git zip unzip autoconf libtool pkg-config \
             zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake \
             libffi-dev libssl-dev
-          pip install buildozer "Cython<3.0" "setuptools<71.0.0"
+          pip install buildozer Cython==0.29.36 "setuptools<71.0.0"
 
       - name: Check buildozer.spec is the pinned one
         run: |
           REQ=$(grep '^requirements' buildozer.spec || true)
           echo "requirements line: $REQ"
           echo "$REQ" | grep -q "python3==3.10.12" || { echo "::error::buildozer.spec in repo is outdated (no pinned python3)"; exit 1; }
-          echo "$REQ" | grep -q "pyjnius==1.6.1" || { echo "::error::buildozer.spec in repo is outdated (no pinned pyjnius)"; exit 1; }
+          echo "$REQ" | grep -q "pyjnius==1.5.0" || { echo "::error::buildozer.spec in repo is outdated (pyjnius must be pinned to 1.5.0)"; exit 1; }
           echo "Spec OK: pinned requirements found."
 
       - name: Build APK
