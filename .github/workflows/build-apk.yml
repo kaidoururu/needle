@@ -6,13 +6,9 @@ on:
   workflow_dispatch:
 
 env:
-  # Use the SDK and NDK preinstalled on the GitHub runner.
-  # No dl.google.com downloads at all — that is what kept failing.
+  # SDK and NDK are preinstalled on the runner — no dl.google.com downloads
   APP_ANDROID_SDK_PATH: /usr/local/lib/android/sdk
   APP_ANDROID_NDK_PATH: /usr/local/lib/android/sdk/ndk/27.3.13750724
-  # pyjnius 1.5.0 needs these to build with pinned Cython 0.29.x
-  USE_CYTHON: "1"
-  PIP_NO_BUILD_ISOLATION: "1"
 
 jobs:
   build:
@@ -30,14 +26,18 @@ jobs:
           sudo apt-get install -y git zip unzip autoconf libtool pkg-config \
             zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake \
             libffi-dev libssl-dev
-          pip install buildozer Cython==0.29.36 "setuptools<71.0.0"
+          # Interlocked pin set from the tested pygame build workflow:
+          # these versions only work together — do not change one alone.
+          pip install "pip<25" "setuptools<70" "wheel<0.43" "build<1.2" \
+            "buildozer<1.6" "python-for-android==2023.5.21" "Cython==0.29.36"
 
       - name: Check buildozer.spec is the pinned one
         run: |
           REQ=$(grep '^requirements' buildozer.spec || true)
           echo "requirements line: $REQ"
-          echo "$REQ" | grep -q "python3==3.10.12" || { echo "::error::buildozer.spec in repo is outdated (no pinned python3)"; exit 1; }
-          echo "$REQ" | grep -q "pyjnius==1.5.0" || { echo "::error::buildozer.spec in repo is outdated (pyjnius must be pinned to 1.5.0)"; exit 1; }
+          echo "$REQ" | grep -q "python3==3.10.12" || { echo "::error::buildozer.spec is outdated (no pinned python3)"; exit 1; }
+          echo "$REQ" | grep -q "pyjnius==1.5.0" || { echo "::error::buildozer.spec is outdated (pyjnius must be 1.5.0)"; exit 1; }
+          echo "$REQ" | grep -q "kivy==2.3.0" || { echo "::error::buildozer.spec is outdated (kivy must be 2.3.0)"; exit 1; }
           echo "Spec OK: pinned requirements found."
 
       - name: Build APK
