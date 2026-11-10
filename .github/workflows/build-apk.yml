@@ -2,14 +2,15 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up Python 3.10
         uses: actions/setup-python@v5
@@ -25,72 +26,47 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y autoconf automake libtool pkg-config             zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5             cmake libffi-dev libssl-dev git wget unzip
+          sudo apt-get install -y build-essential ccache git zlib1g-dev \
+            python3-pip libncurses-dev zip unzip autoconf libtool pkg-config \
+            ninja-build libffi-dev libssl-dev
 
-      - name: Install buildozer
+      - name: Install buildozer and compatible toolchain
         run: |
-          pip install --upgrade pip setuptools wheel
-          pip install cython==0.29.36 buildozer
+          python -m pip install --upgrade pip
+          pip install "cython<3.0" "setuptools<71.0.0" buildozer
 
       - name: Check buildozer.spec is the pinned one
         run: |
-          echo "--- requirements line from buildozer.spec ---"
-          grep -n "^requirements" buildozer.spec || true
-          grep -q "python3==3.10.12" buildozer.spec || {
-            echo "::error::buildozer.spec is outdated: requirements must pin python3==3.10.12 and pygame==2.6.1"; exit 1;
-          }
-          grep -q "pygame==2.6.1" buildozer.spec || {
-            echo "::error::buildozer.spec is outdated: pygame is not pinned"; exit 1;
-          }
-
-      - name: Cache Android SDK and NDK
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.buildozer/android/platform/android-sdk
-            ~/.buildozer/android/platform/android-ndk-r28c
-          key: android-sdk-ndk-v4
-
-      - name: Prepare Android SDK (licenses, cmdline-tools, platform-tools, build-tools)
-        run: |
-          SDK_DIR="$HOME/.buildozer/android/platform/android-sdk"
-          mkdir -p "$SDK_DIR/licenses"
-          printf '24333f8a63b6825ea9c5514f83c2829b004d1fee\n' > "$SDK_DIR/licenses/android-sdk-license"
-          printf '84831b9409646a918e30573bab4c9c91346d8abd\n' > "$SDK_DIR/licenses/android-sdk-preview-license"
-
-          TOOLS_BIN="$SDK_DIR/tools/bin/sdkmanager"
-          if [ ! -x "$TOOLS_BIN" ]; then
-            wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-            unzip -q commandlinetools-linux-11076708_latest.zip -d /tmp/clt
-            mkdir -p "$SDK_DIR/tools/bin" "$SDK_DIR/tools/lib" "$SDK_DIR/cmdline-tools"
-            cp -r /tmp/clt/cmdline-tools/* "$SDK_DIR/cmdline-tools/"
-            cp -r "$SDK_DIR/cmdline-tools/bin" "$SDK_DIR/tools/"
-            cp -r "$SDK_DIR/cmdline-tools/lib" "$SDK_DIR/tools/"
-            chmod +x "$SDK_DIR/tools/bin/sdkmanager" || true
-          fi
-          yes | "$SDK_DIR/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK_DIR" --licenses > /dev/null || true
-          "$SDK_DIR/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK_DIR" platform-tools build-tools;34.0.0 "platforms;android-34" > /dev/null
+          REQ=$(grep '^requirements' buildozer.spec || echo 'requirements NOT FOUND')
+          echo "spec requirements: $REQ"
+          echo "$REQ" | grep -q 'python3==3.10.12' || {
+            echo 'ERROR: buildozer.spec in repo is outdated (no pinned python3). Upload the updated spec.'; exit 1; }
+          echo "$REQ" | grep -q 'pygame==2.6.1' || {
+            echo 'ERROR: buildozer.spec in repo is outdated (no pinned pygame). Upload the updated spec.'; exit 1; }
 
       - name: Build APK
         run: |
           set -o pipefail
-          buildozer -v android debug 2>&1 | tee build_log.txt || {
-            echo ""
-            echo "=================== BUILD FAILED: ERROR LINES ==================="
-            grep -nE "Error|error:|ERROR:|Traceback|Exception|failed|No such file" build_log.txt | tail -60 || true
-            echo "================================================================="
-            exit 1
-          }
+          buildozer -v android debug 2>&1 | tee build_log.txt
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: NeedleInHaystack-apk
-          path: bin/*.apk
+      - name: BUILD FAILED — error lines
+        if: failure()
+        run: |
+          echo '==================== BUILD FAILED: ERROR LINES ===================='
+          grep -n -i -E 'error|failed|traceback|exception|no such file|not found|cannot|could not' build_log.txt | tail -n 60 || true
+          echo '==================================================================='
 
-      - name: Upload full build log
+      - name: Upload build log artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: build-log
           path: build_log.txt
+          if-no-files-found: ignore
+
+      - name: Upload APK artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: needle-apk
+          path: bin/*.apk
