@@ -5,6 +5,14 @@ on:
     branches: [main]
   workflow_dispatch:
 
+env:
+  # pyjnius 1.5.0 cythonizes its .pyx sources only when USE_CYTHON is set;
+  # without it its setup.py fails with
+  # "NameError: name 'PYX_FILES' is not defined" in the pip build backend.
+  USE_CYTHON: "1"
+  # let the pip build backend see the pinned Cython instead of an isolated env
+  PIP_NO_BUILD_ISOLATION: "1"
+
 jobs:
   build:
     runs-on: ubuntu-22.04
