@@ -1,36 +1,52 @@
 name: Build APK
 
+# Запуск: при пуше в main, а также вручную со вкладки Actions
 on:
   push:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      - name: Install system packages
+      - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y zip unzip openjdk-17-jdk \
-              autoconf libtool pkg-config zlib1g-dev \
-              libncurses5-dev libncursesw5-dev cmake \
-              libffi-dev libssl-dev build-essential
+          sudo apt-get install -y \
+            git zip unzip openjdk-17-jdk \
+            autoconf libtool pkg-config cmake \
+            zlib1g-dev libncurses-dev libffi-dev libssl-dev
 
       - name: Install buildozer
-        run: |
-          pip install cython==0.29.36 "setuptools<71.0.0" buildozer
+        run: pip install --upgrade pip buildozer cython virtualenv
+
+      # Кэш SDK/NDK: без него каждая сборка качает ~2 ГБ и занимает 20-30 минут,
+      # с кэшем — первые шаги занимают пару минут
+      - name: Cache buildozer & Android SDK
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.buildozer_android
+            ~/.buildozer
+            .buildozer
+          key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
+          restore-keys: buildozer-${{ runner.os }}-
 
       - name: Build APK
-        run: buildozer -v android debug
+        run: buildozer android debug
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: hay-game-apk
+          name: igla-v-stoge-apk
           path: bin/*.apk
+          if-no-files-found: error
