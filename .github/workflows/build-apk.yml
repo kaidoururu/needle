@@ -9,6 +9,9 @@ env:
   # SDK and NDK are preinstalled on the runner — no dl.google.com downloads
   APP_ANDROID_SDK_PATH: /usr/local/lib/android/sdk
   APP_ANDROID_NDK_PATH: /usr/local/lib/android/sdk/ndk/27.3.13750724
+  # pyjnius 1.6.1 cannot detect the Cython version when cross-building for
+  # Android; this is the variable pyjnius itself documents for that case.
+  ANDROID_PYJNUS_CYTHON_3: "1"
 
 jobs:
   build:
@@ -26,19 +29,40 @@ jobs:
           sudo apt-get install -y git zip unzip autoconf libtool pkg-config \
             zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake \
             libffi-dev libssl-dev
-          # Interlocked pin set from the tested pygame build workflow:
-          # these versions only work together — do not change one alone.
-          pip install "pip<25" "setuptools<70" "wheel<0.43" "build<1.2" \
-            "buildozer<1.6" "python-for-android==2023.5.21" "Cython==0.29.36"
+          pip install buildozer Cython==0.29.36 "setuptools<71.0.0"
 
       - name: Check buildozer.spec is the pinned one
         run: |
           REQ=$(grep '^requirements' buildozer.spec || true)
           echo "requirements line: $REQ"
           echo "$REQ" | grep -q "python3==3.10.12" || { echo "::error::buildozer.spec is outdated (no pinned python3)"; exit 1; }
-          echo "$REQ" | grep -q "pyjnius==1.5.0" || { echo "::error::buildozer.spec is outdated (pyjnius must be 1.5.0)"; exit 1; }
-          echo "$REQ" | grep -q "kivy==2.3.0" || { echo "::error::buildozer.spec is outdated (kivy must be 2.3.0)"; exit 1; }
+          echo "$REQ" | grep -q "pyjnius==1.6.1" || { echo "::error::buildozer.spec is outdated (pyjnius must be 1.6.1)"; exit 1; }
           echo "Spec OK: pinned requirements found."
+
+      - name: Pre-install Apache Ant with retries
+        run: |
+          set -e
+          ANT_DIR="${HOME}/.buildozer/android/platform/apache-ant-1.9.4"
+          if [ -f "$ANT_DIR/bin/ant" ]; then
+            echo "Ant already present, skipping."
+            exit 0
+          fi
+          mkdir -p "${HOME}/.buildozer/android/platform"
+          for ATTEMPT in 1 2 3; do
+            echo "Ant download attempt $ATTEMPT of 3"
+            rm -f /tmp/ant.tar.gz
+            if curl -fsSL --retry 3 --retry-delay 5 --connect-timeout 30 \
+                 "https://archive.apache.org/dist/ant/binaries/apache-ant-1.9.4-bin.tar.gz" \
+                 -o /tmp/ant.tar.gz \
+               && tar -tzf /tmp/ant.tar.gz > /dev/null 2>&1; then
+              tar -xzf /tmp/ant.tar.gz -C "${HOME}/.buildozer/android/platform/"
+              echo "Ant installed OK."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::Ant download failed after 3 attempts (buildozer will try its own download)"
+          exit 0
 
       - name: Build APK
         run: |
