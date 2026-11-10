@@ -6,8 +6,6 @@ source.dir = .
 source.include_exts = py,png,jpg
 version = 1.0
 
-# Pinned stack proven for pygame builds:
-# python 3.10.12 (pygame breaks on 3.11+), pyjnius 1.5.0 (compiles with Cython 0.29.x)
 requirements = python3==3.10.12,hostpython3==3.10.12,pygame==2.6.1,pyjnius==1.5.0
 
 orientation = portrait
@@ -16,8 +14,8 @@ fullscreen = True
 android.archs = arm64-v8a
 android.api = 34
 android.minapi = 24
-android.ndk = 28c
-# buildozer accepts Android SDK licenses non-interactively
+# Use the NDK preinstalled on the runner (r27c) — matches the path in the workflow
+android.ndk = 27c
 android.accept_sdk_license = True
 
 source.exclude_dirs = .buildozer,bin,__pycache__,.git
