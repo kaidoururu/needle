@@ -8,10 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up Python 3.10
         uses: actions/setup-python@v5
@@ -24,54 +22,75 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Install buildozer and cython
+      - name: Install system dependencies
         run: |
-          python -m pip install --upgrade pip wheel
-          pip install buildozer cython
+          sudo apt-get update
+          sudo apt-get install -y autoconf automake libtool pkg-config             zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5             cmake libffi-dev libssl-dev git wget unzip
 
-      - name: Cache buildozer platform (SDK, NDK, p4a)
+      - name: Install buildozer
+        run: |
+          pip install --upgrade pip setuptools wheel
+          pip install cython==0.29.36 buildozer
+
+      - name: Check buildozer.spec is the pinned one
+        run: |
+          echo "--- requirements line from buildozer.spec ---"
+          grep -n "^requirements" buildozer.spec || true
+          grep -q "python3==3.10.12" buildozer.spec || {
+            echo "::error::buildozer.spec is outdated: requirements must pin python3==3.10.12 and pygame==2.6.1"; exit 1;
+          }
+          grep -q "pygame==2.6.1" buildozer.spec || {
+            echo "::error::buildozer.spec is outdated: pygame is not pinned"; exit 1;
+          }
+
+      - name: Cache Android SDK and NDK
         uses: actions/cache@v4
         with:
           path: |
-            ~/.buildozer
-            ~/.cache/pip
-          key: buildozer-ubuntu22-py310-v4-${{ hashFiles('buildozer.spec') }}
-          restore-keys: |
-            buildozer-ubuntu22-py310-v4-
+            ~/.buildozer/android/platform/android-sdk
+            ~/.buildozer/android/platform/android-ndk-r28c
+          key: android-sdk-ndk-v4
 
-      - name: Install Android SDK with accepted licenses
+      - name: Prepare Android SDK (licenses, cmdline-tools, platform-tools, build-tools)
         run: |
-          set -euo pipefail
-          SDK="$HOME/.buildozer/android/platform/android-sdk"
-          if [ ! -x "$SDK/cmdline-tools/latest/bin/sdkmanager" ]; then
-            echo "Installing Android commandline-tools..."
-            mkdir -p "$SDK/cmdline-tools"
-            curl -fsSL -o /tmp/clt.zip \
-              https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip
-            unzip -q /tmp/clt.zip -d /tmp/clt
-            mv /tmp/clt/cmdline-tools "$SDK/cmdline-tools/latest"
-            # buildozer ищет sdkmanager и в старом расположении tools/bin —
-            # кладём его в оба, чтобы работал любой порядок проверки
-            mkdir -p "$SDK/tools"
-            cp -r "$SDK/cmdline-tools/latest/." "$SDK/tools/"
+          SDK_DIR="$HOME/.buildozer/android/platform/android-sdk"
+          mkdir -p "$SDK_DIR/licenses"
+          printf '24333f8a63b6825ea9c5514f83c2829b004d1fee\n' > "$SDK_DIR/licenses/android-sdk-license"
+          printf '84831b9409646a918e30573bab4c9c91346d8abd\n' > "$SDK_DIR/licenses/android-sdk-preview-license"
+
+          TOOLS_BIN="$SDK_DIR/tools/bin/sdkmanager"
+          if [ ! -x "$TOOLS_BIN" ]; then
+            wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+            unzip -q commandlinetools-linux-11076708_latest.zip -d /tmp/clt
+            mkdir -p "$SDK_DIR/tools/bin" "$SDK_DIR/tools/lib" "$SDK_DIR/cmdline-tools"
+            cp -r /tmp/clt/cmdline-tools/* "$SDK_DIR/cmdline-tools/"
+            cp -r "$SDK_DIR/cmdline-tools/bin" "$SDK_DIR/tools/"
+            cp -r "$SDK_DIR/cmdline-tools/lib" "$SDK_DIR/tools/"
+            chmod +x "$SDK_DIR/tools/bin/sdkmanager" || true
           fi
-          export PATH="$SDK/cmdline-tools/latest/bin:$PATH"
-          # yes завершается SIGPIPE, когда sdkmanager дочитал лицензии —
-          # это норма, поэтому || true (иначе pipefail уронит шаг)
-          yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager --install "platform-tools" "platforms;android-34" "build-tools;34.0.0" > /dev/null
-          echo "SDK ready, sdkmanager version:"
-          sdkmanager --version
+          yes | "$SDK_DIR/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK_DIR" --licenses > /dev/null || true
+          "$SDK_DIR/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK_DIR" platform-tools build-tools;34.0.0 "platforms;android-34" > /dev/null
 
       - name: Build APK
-        env:
-          ANDROIDSDK: /home/runner/.buildozer/android/platform/android-sdk
         run: |
-          buildozer android debug
+          set -o pipefail
+          buildozer -v android debug 2>&1 | tee build_log.txt || {
+            echo ""
+            echo "=================== BUILD FAILED: ERROR LINES ==================="
+            grep -nE "Error|error:|ERROR:|Traceback|Exception|failed|No such file" build_log.txt | tail -60 || true
+            echo "================================================================="
+            exit 1
+          }
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: needle-apk
+          name: NeedleInHaystack-apk
           path: bin/*.apk
-          if-no-files-found: error
+
+      - name: Upload full build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build_log.txt
