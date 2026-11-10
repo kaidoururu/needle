@@ -1,48 +1,27 @@
 [app]
-
-# Change these three for your app. package.domain + package.name become the
-# Android application id, which is permanent once published.
-title = Pygame App
-package.name = pygameapp
-package.domain = org.example
-
+title = Needle In Haystack
+package.name = needle
+package.domain = org.yourname
 source.dir = .
-source.include_exts = py,png,jpg,kv,atlas,json,ttf
-source.include_patterns = src/**/*.py,assets/**/*
-version = 0.1
+source.include_exts = py,png,jpg
+version = 1.0
 
-# The first four are pinned as a set and must move together with the p4a
-# commit in docker/dockerfile.android. See the README. Everything from
-# "pygame" onward is your app's own dependencies; replace as needed.
-requirements = python3==3.10.12,kivy==2.3.0,pyjnius==1.5.0,hostpython3==3.10.12,pygame,android,requests,certifi
+# Proven pins: python 3.10.12 (pygame breaks on 3.11+), pygame 2.6.1, pyjnius 1.6.1
+# (1.5.0 fails with PYX_FILES under the pip build backend; 1.6.1 is the version
+# python-for-android master itself builds daily).
+requirements = python3==3.10.12,hostpython3==3.10.12,pygame==2.6.1,pyjnius==1.6.1
 
-orientation = landscape, portrait
-fullscreen = 1
+orientation = portrait
+fullscreen = True
 
-android.archs = arm64-v8a, armeabi-v7a
+android.archs = arm64-v8a
+android.api = 34
+android.minapi = 24
+android.ndk = 27c
 android.accept_sdk_license = True
-android.allow_backup = True
 
-# Keep this list as small as your app can tolerate. Some permissions carry
-# real cost: MANAGE_EXTERNAL_STORAGE, for instance, triggers a Play Store
-# review requirement.
-android.permissions = INTERNET,ACCESS_NETWORK_STATE
-
-icon.filename = icon.png
-presplash.filename = presplash.png
-android.presplash_color = #000000
-
-# FileProvider wiring, needed only if your app shares files with other apps.
-# Drop both lines and docker/patch_manifest.py if you don't. See the README.
-android.add_resources = res/xml/file_paths.xml:xml/file_paths.xml
-android.gradle_dependencies = androidx.core:core:1.6.0
-
-p4a.source_dir = /p4a
-
-# Default is an AAB. An APK is what you sideload.
-android.release_artifact = apk
-android.keystore = keystore/release.keystore
-android.keyalias = release
+source.exclude_dirs = .buildozer,bin,__pycache__,.git
+source.exclude_patterns = *.md,*.zip,build_log.txt,hay_save.json
 
 [buildozer]
 log_level = 2
