@@ -4,7 +4,7 @@ package.name = needle
 package.domain = org.yourname
 source.dir = .
 source.include_exts = py,png,jpg
-version = 1.1
+version = 1.2
 
 # App icon (root of the repo). Android masks it to the launcher shape itself.
 icon.filename = icon.png
@@ -12,7 +12,9 @@ icon.filename = icon.png
 # Proven pins: python 3.10.12 (pygame breaks on 3.11+), pygame 2.6.1, pyjnius 1.7.0
 requirements = python3==3.10.12,hostpython3==3.10.12,pygame==2.6.1,pyjnius==1.7.0
 
-# локальный рецепт pygame с фиксом issue #4394
+# Local recipe that fixes pygame issue #4394 on arm64-v8a
+# (missing SIMD symbol alphablit_alpha_sse2_argb_surf_alpha in surface.so).
+# The recipe lives in ./p4a-recipes/pygame/__init__.py
 p4a.local_recipes = ./p4a-recipes
 
 orientation = portrait
@@ -30,3 +32,4 @@ source.exclude_patterns = *.md,*.zip,build_log.txt,hay_save.json
 [buildozer]
 log_level = 2
 warn_on_root = 1
+
