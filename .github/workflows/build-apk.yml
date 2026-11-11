@@ -12,6 +12,8 @@ env:
   # pyjnius 1.7.0 uses this variable to switch to Cython 3 mode when
   # cross-building for Android (see pyjnius docs/setup.py).
   ANDROID_PYJNUS_CYTHON_3: "1"
+  # Gradle 8.14.3 (used by p4a) requires JDK 17; the runner's default is 11.
+  JAVA_HOME: /usr/lib/jvm/temurin-17-jdk-amd64
 
 jobs:
   build:
