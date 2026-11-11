@@ -5,15 +5,10 @@ from os.path import join
 try:
     from pythonforandroid.recipes.pygame import Pygame2Recipe
 except ImportError:
-    from pythonforandroid.recipes.pygame import PygameRecipe as Pygame2Recipe
-
-# Fix for pygame issue #4394 on arm64-v8a:
-# pygame 2.5+ enables ARM NEON blitters, but the Android Setup template does
-# not compile simd_blitters_sse2.c, so surface.so references the missing
-# symbol alphablit_alpha_sse2_argb_surf_alpha and dies at import time.
-# This recipe adds the missing source file to both the template and the
-# generated Setup file; if the patch cannot be applied, it falls back to
-# disabling NEON blitters entirely (pure-C path, visually identical).
+    try:
+        from pythonforandroid.recipes.pygame import PygameRecipe as Pygame2Recipe
+    except ImportError:
+        raise ImportError("[IGLA-FIX] no pygame recipe class found in this p4a version")
 
 MARK = "[IGLA-FIX]"
 SIMD = "src_c/simd_blitters_sse2.c"
@@ -21,70 +16,88 @@ SURFACE_LINE = (
     "surface src_c/simd_blitters_sse2.c src_c/simd_blitters_avx2.c "
     "src_c/surface.c src_c/alphablit.c src_c/surface_fill.c $(SDL) $(DEBUG)"
 )
-SETUP_FILES = ("buildconfig/Setup.Android.SDL2.in", "Setup")
+
+# Маркер пишется в момент импорта модуля рецепта: если buildozer подхватил
+# локальный рецепт, файл появится в корне репозитория независимо от лога сборки.
+try:
+    with open("igla_fix_marker.txt", "w") as _mf:
+        _mf.write("patched pygame recipe imported OK (local recipe picked up)\n")
+except OSError:
+    pass
 
 
 def patch_text(content):
+    """Возвращает (новый текст, статус): replaced / already-patched / no-surface-line."""
     if SIMD in content:
         return content, "already-patched"
     new, n = re.subn(r"(?m)^[ \t]*surface\b[ \t].*$", SURFACE_LINE, content)
-    if n == 1:
-        return new, "replaced"
-    return content, "no-surface-line"
-
-
-def apply_patch(bdir, stage):
-    """Patch the Setup files. Returns True if SIMD source is referenced."""
-    simd_ok = False
-    seen = 0
-    for rel in SETUP_FILES:
-        path = join(bdir, rel)
-        if not os.path.exists(path):
-            print(f"{MARK} {rel} not found at {stage}", flush=True)
-            continue
-        seen += 1
-        with open(path) as f:
-            content = f.read()
-        new, how = patch_text(content)
-        print(f"{MARK} {rel} at {stage}: {how}", flush=True)
-        if how == "replaced":
-            with open(path, "w") as f:
-                f.write(new)
-        if SIMD in new:
-            simd_ok = True
-    if seen == 0:
-        print(f"{MARK} WARNING: no Setup files found at {stage}", flush=True)
-    return simd_ok
-
-
-def disable_neon(bdir, stage):
-    path = join(bdir, "src_c", "simd_blitters.h")
-    if not os.path.exists(path):
-        print(f"{MARK} FALLBACK FAILED at {stage}: {path} not found", flush=True)
-        return
-    with open(path) as f:
-        h = f.read()
-    if "IGLA_DISABLE_NEON" in h:
-        print(f"{MARK} FALLBACK already applied", flush=True)
-        return
-    h += "\n#undef PG_ENABLE_ARM_NEON /* IGLA_DISABLE_NEON */\n"
-    with open(path, "w") as f:
-        f.write(h)
-    print(f"{MARK} FALLBACK: NEON disabled in simd_blitters.h", flush=True)
+    return (new, "replaced") if n == 1 else (content, "no-surface-line")
 
 
 class PatchedPygameRecipe(Pygame2Recipe):
+    """Фикс pygame issue #4394: модуль surface ссылается на SIMD-символы,
+    которых нет в сборке Android. Добавляем файл прямо в Setup."""
+
+    def _patch_file(self, bdir, rel, phase):
+        path = join(bdir, rel)
+        if not os.path.exists(path):
+            print(f"{MARK} {rel} not found at {phase}", flush=True)
+            return None
+        with open(path) as f:
+            content = f.read()
+        new, how = patch_text(content)
+        print(f"{MARK} {rel} at {phase}: {how}", flush=True)
+        if how == "replaced":
+            with open(path, "w") as f:
+                f.write(new)
+        return new
+
     def prebuild_arch(self, arch):
         super().prebuild_arch(arch)
         bdir = self.get_build_dir(arch.arch)
-        if not apply_patch(bdir, "prebuild"):
-            disable_neon(bdir, "prebuild")
+        replaced = seen = 0
+        for rel in ("buildconfig/Setup.Android.SDL2.in", "Setup"):
+            new = self._patch_file(bdir, rel, "prebuild")
+            if new is not None:
+                seen += 1
+                if SIMD in new:
+                    replaced += 1
+        if replaced == 0 and seen > 0:
+            self._disable_neon(bdir)
+        self._write_marker("prebuild done")
 
     def build_arch(self, arch):
         bdir = self.get_build_dir(arch.arch)
-        if not apply_patch(bdir, "build"):
-            disable_neon(bdir, "build")
+        ok = False
+        for rel in ("buildconfig/Setup.Android.SDL2.in", "Setup"):
+            new = self._patch_file(bdir, rel, "build")
+            if new is not None and SIMD in new:
+                ok = True
+        if not ok:
+            self._disable_neon(bdir)
         super().build_arch(arch)
+
+    def _disable_neon(self, bdir):
+        path = join(bdir, "src_c", "simd_blitters.h")
+        if not os.path.exists(path):
+            print(f"{MARK} FALLBACK FAILED: {path} not found", flush=True)
+            return
+        with open(path) as f:
+            h = f.read()
+        if "IGLA_DISABLE_NEON" in h:
+            print(f"{MARK} FALLBACK already applied", flush=True)
+            return
+        h += "\n#undef PG_ENABLE_ARM_NEON /* IGLA_DISABLE_NEON */\n"
+        with open(path, "w") as f:
+            f.write(h)
+        print(f"{MARK} FALLBACK: NEON disabled in simd_blitters.h", flush=True)
+
+    def _write_marker(self, note):
+        try:
+            with open("igla_fix_marker.txt", "a") as mf:
+                mf.write(note + "\n")
+        except OSError:
+            pass
 
 
 recipe = PatchedPygameRecipe()
