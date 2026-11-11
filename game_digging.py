@@ -1,0 +1,214 @@
+# -*- coding: utf-8 -*-
+# Копание: ловушки, находки, обработка клетки
+
+import math
+import random
+import pygame
+
+from game_config import *
+
+
+class DiggingMixin:
+    """Копание: ловушки, находки, обработка клетки"""
+
+
+    # ---------- ловушки ----------
+    def trigger_item(self, item):
+        if item == "stone":
+            if self.shovel >= STONE_IMMUNE_LVL and self.dig_side() >= 7:
+                self.money = max(0, self.money - STONE_MONEY_PENALTY)
+                self.show_notice(item)
+                self.notice["sub"] = ("Лопата крепка: -%d монет"
+                                      % STONE_MONEY_PENALTY)
+            elif self.shovel >= STONE_IMMUNE_LVL:
+                self.show_notice(item)
+                self.notice["sub"] = ("Лопата ур.%d держит удар — "
+                                      "откатов нет" % self.shovel)
+            elif self.shovel > 1:
+                old = self.shovel
+                self.shovel = max(1, self.shovel - STONE_PENALTY)
+                self.show_notice(item)
+                self.notice["sub"] = ("Лопата сломана: ур.%d -> ур.%d"
+                                      % (old, self.shovel))
+            else:
+                self.show_notice(item)
+                self.notice["sub"] = "Лопата и так минимальная"
+        elif item == "plant":
+            old = self.health
+            self.poison_time = self.poison_duration()
+            self.poison_flash = 1.0
+            if (not getattr(self, "tut_antidote_done", False)
+                    and self.antidotes > 0):
+                self.tutorial = {"item": "antidote"}
+            self.show_notice(item)
+            self.notice["sub"] = ("Отравление! Здоровье: %d -> %d"
+                                  % (int(round(old)),
+                                     int(round(self.health))))
+            self.add_message("Ядовитое растение! Здоровье: %d -> %d"
+                             % (int(round(old)), int(round(self.health))),
+                             PURPLE_MSG)
+        elif item == "animal":
+            old = self.health
+            dmg = self.animal_damage()
+            self.health -= dmg
+            self.bite_flash = 1.0
+            self.show_notice(item)
+            new_h = max(0, self.health)
+            self.notice["sub"] = ("Здоровье: %d -> %d"
+                                  % (int(round(old)), int(round(new_h))))
+            self.add_message("Укус зверя! Здоровье: %d -> %d"
+                             % (int(round(old)), int(round(new_h))),
+                             RED)
+            if self.health <= 0:
+                self.health = 0
+                self.dead = True
+            if (not getattr(self, "tut_bandage_done", False)
+                    and self.bandages > 0 and self.health > 0):
+                self.tutorial = {"item": "bandage"}
+        elif item == "bandage":
+            cap = self.bandage_cap()
+            if self.bandages < cap:
+                self.bandages += 1
+                self.show_notice(item)
+                self.notice["sub"] = "+1 бинт в запас"
+            else:
+                self.show_notice(item)
+                self.notice["sub"] = "Карман полон — бинт потерян"
+        elif item == "antidote":
+            cap = self.antidote_cap()
+            if self.antidotes < cap:
+                self.antidotes += 1
+                self.show_notice(item)
+                self.notice["sub"] = "+1 противоядие в запас"
+            else:
+                self.show_notice(item)
+                self.notice["sub"] = "Аптечка полна — противоядие потеряно"
+        elif item == "compass":
+            col = self.needle_idx % self.cols
+            row = self.needle_idx // self.cols
+            self.compass_quadrant = (row < self.rows / 2,
+                                     col < self.cols / 2)
+            self.show_notice(item)
+            self.notice["sub"] = "Игла в подсвеченной зоне стога"
+        elif item == "magnet":
+            self.magnet_ready = True
+            self.show_notice(item)
+            self.notice["sub"] = "Следующий рывок вдвое больше"
+        elif item == "clover":
+            self.clover_time = CLOVER_TIME
+            self.show_notice(item)
+            self.notice["sub"] = (
+                "%d секунд: шанс %d%% спастись от ловушек"
+                % (int(CLOVER_TIME), int(CLOVER_SAVE_CHANCE * 100)))
+
+    # ---------- копание ----------
+
+
+
+    # ---------- копание ----------
+    def resolve_items(self, dug_now):
+        """За один рывок срабатывают ВСЕ ловушки рывка: камень, зверь и
+        растение каждая отдельно. Клевер проверяется отдельно для каждой
+        ловушки и может спасти от части из них. Если сработала хоть одна
+        ловушка — найденные в этом же рывке бинты и противоядия теряются.
+        Редкие находки (компас, магнит, клевер) достаются всегда и не
+        блокируются ловушками. Возвращает False, если сработала хотя бы
+        одна ловушка."""
+        found = [i for i in dug_now if self.cells[i]["item"]]
+        if not found:
+            return True
+        found_items = [self.cells[i]["item"] for i in found]
+        for i in found:
+            self.cells[i]["item"] = None
+        # редкие находки — всегда игроку
+        for it in found_items:
+            if it in RARE_ITEMS:
+                self.trigger_item(it)
+        # ловушки — каждая отдельно, клевер спасает от каждой отдельно
+        trapped = False
+        saved = 0
+        for it in found_items:
+            if it not in ("stone", "animal", "plant"):
+                continue
+            if (self.clover_time > 0
+                    and random.random() < CLOVER_SAVE_CHANCE):
+                saved += 1
+                continue
+            trapped = True
+            self.trigger_item(it)
+        if saved:
+            self.add_message("Клевер спас от ловушки x%d!" % saved,
+                             GREEN_MSG)
+        # лекарства достают, только если ни одна ловушка не сработала
+        meds = [it for it in found_items if it in ("bandage", "antidote")]
+        if meds and trapped:
+            self.add_message("Найденные лекарства потеряны при ловушке!",
+                             RED)
+        else:
+            for it in meds:
+                self.trigger_item(it)
+        return not trapped
+
+
+
+    def dig_at(self, pos):
+        cx = int((pos[0] - self.field_rect.x) / self.cw)
+        cy = int((pos[1] - self.field_rect.y) / self.ch)
+        if not (0 <= cx < self.cols and 0 <= cy < self.rows):
+            return
+        side = self.dig_side()
+        if self.magnet_ready:
+            side = min(14, side * MAGNET_MULT)
+        r = (side - 1) // 2
+        targets = []
+        for dy in range(-r, side - r):
+            for dx in range(-r, side - r):
+                x, y = cx + dx, cy + dy
+                if 0 <= x < self.cols and 0 <= y < self.rows:
+                    i = y * self.cols + x
+                    if not self.cells[i]["dug"]:
+                        targets.append(i)
+        random.shuffle(targets)
+        if not targets:
+            return
+        if self.stamina < 1:
+            self.add_message("Не хватает сил", RED)
+            return
+        dug_now = []
+        for i in targets:
+            if self.stamina < 1:
+                break
+            self.stamina -= 1
+            self.cells[i]["dug"] = True
+            dug_now.append(i)
+            cell = self.cells[i]
+            if cell["hay"]:
+                self.hay += 1
+                self.hay_value += cell["price"]
+                cell["hay"] = False
+            if i == self.needle_idx:
+                self.won = True
+                self.needle_found = True
+                self.money += self.needle_bonus()
+                self.compass_hint = None
+                self.compass_quadrant = None
+                if self.golden_needle:
+                    self.add_message("ЗОЛОТАЯ ИГЛА! Бонус x%d"
+                                     % GOLD_NEEDLE_BONUS_MULT, GOLD)
+                self.save_game()
+        if dug_now:
+            self.digs += 1
+            self.magnet_ready = False
+            self.field_dirty = True
+            self.spawn_straws(dug_now)
+            safe = self.resolve_items(dug_now)
+            if safe:
+                self.streak += 1
+                if self.streak % STREAK_GOAL == 0:
+                    bonus = STREAK_BONUS_BASE * self.level
+                    self.money += bonus
+                    self.add_message("Серия: %d рывков без ловушек, "
+                                     "+%d монет" % (self.streak, bonus),
+                                     GOLD)
+            else:
+                self.streak = 0
