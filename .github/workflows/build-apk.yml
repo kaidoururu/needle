@@ -9,8 +9,7 @@ env:
   # SDK and NDK are preinstalled on the runner — no dl.google.com downloads
   APP_ANDROID_SDK_PATH: /usr/local/lib/android/sdk
   APP_ANDROID_NDK_PATH: /usr/local/lib/android/sdk/ndk/27.3.13750724
-  # pyjnius 1.6.1 cannot detect the Cython version when cross-building for
-  # Android; this is the variable pyjnius itself documents for that case.
+  # pyjnius 1.7.0 needs this to build with Cython 3 when cross-compiling
   ANDROID_PYJNUS_CYTHON_3: "1"
 
 jobs:
@@ -36,7 +35,7 @@ jobs:
           REQ=$(grep '^requirements' buildozer.spec || true)
           echo "requirements line: $REQ"
           echo "$REQ" | grep -q "python3==3.10.12" || { echo "::error::buildozer.spec is outdated (no pinned python3)"; exit 1; }
-          echo "$REQ" | grep -q "pyjnius==1.6.1" || { echo "::error::buildozer.spec is outdated (pyjnius must be 1.6.1)"; exit 1; }
+          echo "$REQ" | grep -q "pyjnius==1.7.0" || { echo "::error::buildozer.spec is outdated (pyjnius must be 1.7.0)"; exit 1; }
           echo "Spec OK: pinned requirements found."
 
       - name: Pre-install Apache Ant with retries
