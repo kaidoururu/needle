@@ -39,6 +39,8 @@ jobs:
           echo "requirements line: $REQ"
           echo "$REQ" | grep -q "python3==3.10.12" || { echo "::error::buildozer.spec is outdated (no pinned python3)"; exit 1; }
           echo "$REQ" | grep -q "pyjnius==1.7.0" || { echo "::error::buildozer.spec is outdated (pyjnius must be 1.7.0)"; exit 1; }
+          echo "$REQ" | grep -q "pygame==2.6.1" || { echo "::error::buildozer.spec is outdated (pygame must be 2.6.1)"; exit 1; }
+          grep -q "p4a.local_recipes" buildozer.spec || { echo "::error::buildozer.spec is missing p4a.local_recipes (pygame fix will not be applied)"; exit 1; }
           echo "Spec OK: pinned requirements found."
 
       - name: Pre-install Apache Ant with retries
@@ -70,6 +72,35 @@ jobs:
         run: |
           set -o pipefail
           buildozer -v android debug 2>&1 | tee build_log.txt
+
+      - name: Verify pygame patch was applied
+        if: always()
+        run: |
+          if ! grep -q "IGLA-FIX" build_log.txt; then
+            echo "::error::No [IGLA-FIX] markers in the build log — local recipe was NOT picked up by the build."
+            exit 1
+          fi
+          echo "Patch markers found:"
+          grep "IGLA-FIX" build_log.txt | tail -n 10
+
+      - name: Check surface.so for SIMD symbol
+        run: |
+          SO=$(find .buildozer -name surface.so -path '*pygame*' 2>/dev/null | head -n1)
+          echo "surface.so: ${SO:-not found}"
+          if [ -z "$SO" ]; then
+            echo "surface.so not found — skipping symbol check (fallback path was likely used)."
+            exit 0
+          fi
+          if grep -q "FALLBACK" build_log.txt; then
+            echo "NEON fallback was used — SIMD symbol check skipped by design."
+            exit 0
+          fi
+          if nm -D --defined-only "$SO" | grep -q "alphablit_alpha_sse2_argb_surf_alpha"; then
+            echo "OK: SIMD symbol is present in surface.so"
+          else
+            echo "::error::surface.so still lacks the SIMD symbol — patch did not take effect"
+            exit 1
+          fi
 
       - name: Show error details on failure
         if: failure()
