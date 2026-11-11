@@ -6,10 +6,9 @@ source.dir = .
 source.include_exts = py,png,jpg
 version = 1.0
 
-# Proven pins: python 3.10.12 (pygame breaks on 3.11+), pygame 2.6.1, pyjnius 1.6.1
-# (1.5.0 fails with PYX_FILES under the pip build backend; 1.6.1 is the version
-# python-for-android master itself builds daily).
-requirements = python3==3.10.12,hostpython3==3.10.12,pygame==2.6.1,pyjnius==1.6.1
+# Proven pins: python 3.10.12 (pygame breaks on 3.11+), pygame 2.6.1,
+# pyjnius 1.7.0 (first version with full Cython 3 support on Android)
+requirements = python3==3.10.12,hostpython3==3.10.12,pygame==2.6.1,pyjnius==1.7.0
 
 orientation = portrait
 fullscreen = True
