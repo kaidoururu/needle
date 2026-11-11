@@ -30,7 +30,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y git zip unzip autoconf libtool pkg-config \
             zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake \
-            libffi-dev libssl-dev
+            libffi-dev libssl-dev binutils
           pip install buildozer Cython==0.29.36 "setuptools<71.0.0"
 
       - name: Check buildozer.spec is the pinned one
@@ -40,7 +40,6 @@ jobs:
           echo "$REQ" | grep -q "python3==3.10.12" || { echo "::error::buildozer.spec is outdated (no pinned python3)"; exit 1; }
           echo "$REQ" | grep -q "pyjnius==1.7.0" || { echo "::error::buildozer.spec is outdated (pyjnius must be 1.7.0)"; exit 1; }
           echo "$REQ" | grep -q "pygame==2.6.1" || { echo "::error::buildozer.spec is outdated (pygame must be 2.6.1)"; exit 1; }
-          grep -q "p4a.local_recipes" buildozer.spec || { echo "::error::buildozer.spec is missing p4a.local_recipes (pygame fix will not be applied)"; exit 1; }
           echo "Spec OK: pinned requirements found."
 
       - name: Pre-install Apache Ant with retries
@@ -76,35 +75,47 @@ jobs:
       - name: Verify pygame patch was applied
         if: always()
         run: |
-          if ! grep -q "IGLA-FIX" build_log.txt; then
-            echo "::error::No [IGLA-FIX] markers in the build log — local recipe was NOT picked up by the build."
+          if [ ! -f build_log.txt ]; then
+            echo "::warning::build_log.txt not found — Build APK step did not run or did not tee. The real failure is in a step above."
+            exit 0
+          fi
+          if [ -f igla_fix_marker.txt ]; then
+            echo "=== Local recipe WAS picked up ==="
+            cat igla_fix_marker.txt
+          else
+            echo "::error::build_log.txt exists but igla_fix_marker.txt is missing — local recipe was NOT picked up by buildozer."
             exit 1
           fi
-          echo "Patch markers found:"
-          grep "IGLA-FIX" build_log.txt | tail -n 10
+          echo "=== IGLA-FIX log lines ==="
+          grep "IGLA-FIX" build_log.txt | tail -n 10 || true
 
       - name: Check surface.so for SIMD symbol
+        if: success()
         run: |
           SO=$(find .buildozer -name surface.so -path '*pygame*' 2>/dev/null | head -n1)
           echo "surface.so: ${SO:-not found}"
           if [ -z "$SO" ]; then
-            echo "surface.so not found — skipping symbol check (fallback path was likely used)."
+            echo "::warning::surface.so not found — cannot verify symbol"
             exit 0
           fi
           if grep -q "FALLBACK" build_log.txt; then
-            echo "NEON fallback was used — SIMD symbol check skipped by design."
+            echo "NEON fallback was used - symbol check skipped."
             exit 0
           fi
           if nm -D --defined-only "$SO" | grep -q "alphablit_alpha_sse2_argb_surf_alpha"; then
             echo "OK: SIMD symbol is present in surface.so"
           else
-            echo "::error::surface.so still lacks the SIMD symbol — patch did not take effect"
+            echo "::error::surface.so still lacks the SIMD symbol - patch did not take effect"
             exit 1
           fi
 
       - name: Show error details on failure
         if: failure()
         run: |
+          if [ ! -f build_log.txt ]; then
+            echo "build_log.txt not found — see the failed step above for details."
+            exit 0
+          fi
           echo "==================== ERROR LINES (without env dump) ===================="
           grep -v '^#     ' build_log.txt | grep -n -i -E "error|failed|exception|Traceback|failed to" | tail -n 60 || true
           echo "==================== LAST 400 LOG LINES (without env dump) ===================="
@@ -116,6 +127,7 @@ jobs:
         with:
           name: build-log
           path: build_log.txt
+          if-no-files-found: warn
 
       - name: Upload APK
         if: success()
