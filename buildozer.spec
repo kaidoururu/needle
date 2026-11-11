@@ -6,8 +6,10 @@ source.dir = .
 source.include_exts = py,png,jpg
 version = 1.0
 
-# Proven pins: python 3.10.12 (pygame breaks on 3.11+), pygame 2.6.1,
-# pyjnius 1.7.0 (first version with full Cython 3 support on Android)
+# App icon (root of the repo). Android masks it to the launcher shape itself.
+icon.filename = icon.png
+
+# Proven pins: python 3.10.12 (pygame breaks on 3.11+), pygame 2.6.1, pyjnius 1.7.0
 requirements = python3==3.10.12,hostpython3==3.10.12,pygame==2.6.1,pyjnius==1.7.0
 
 orientation = portrait
