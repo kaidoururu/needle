@@ -90,10 +90,11 @@ class DiggingMixin:
                                      col < self.cols / 2)
             self.show_notice(item)
             self.notice["sub"] = "Игла в подсвеченной зоне стога"
-        elif item == "magnet":
-            self.magnet_ready = True
+        elif item == "energy":
+            self.energy_time = ENERGY_TIME
             self.show_notice(item)
-            self.notice["sub"] = "Следующий рывок вдвое больше"
+            self.notice["sub"] = ("%d секунд: энергия не тратится"
+                                  % int(ENERGY_TIME))
         elif item == "clover":
             self.clover_time = CLOVER_TIME
             self.show_notice(item)
@@ -111,7 +112,7 @@ class DiggingMixin:
         растение каждая отдельно. Клевер проверяется отдельно для каждой
         ловушки и может спасти от части из них. Если сработала хоть одна
         ловушка — найденные в этом же рывке бинты и противоядия теряются.
-        Редкие находки (компас, магнит, клевер) достаются всегда и не
+        Редкие находки (компас, энергетик, клевер) достаются всегда и не
         блокируются ловушками. Возвращает False, если сработала хотя бы
         одна ловушка."""
         found = [i for i in dug_now if self.cells[i]["item"]]
@@ -159,8 +160,6 @@ class DiggingMixin:
         if not (0 <= cx < self.cols and 0 <= cy < self.rows):
             return
         side = self.dig_side()
-        if self.magnet_ready:
-            side = min(14, side * MAGNET_MULT)
         targets = []
         if side >= DIG_CIRCLE_MIN_SIDE:
             # круг: клетки, чьи центры попадают в радиус от точки клика
@@ -190,13 +189,16 @@ class DiggingMixin:
         random.shuffle(targets)
         if not targets:
             return
-        # рывок целиком или никак: сил должно хватить на все клетки сразу
-        if self.stamina < len(targets):
+        # рывок целиком или никак: сил должно хватить на все клетки
+        # сразу. Во время энергетика энергия не тратится — и проверка
+        # запаса сил не нужна, и запас не уменьшается.
+        if self.energy_time <= 0 and self.stamina < len(targets):
             self.add_message("Не хватает сил", RED)
             return
         dug_now = []
         for i in targets:
-            self.stamina -= 1
+            if self.energy_time <= 0:
+                self.stamina -= 1
             self.cells[i]["dug"] = True
             dug_now.append(i)
             cell = self.cells[i]
@@ -216,7 +218,6 @@ class DiggingMixin:
                 self.save_game()
         if dug_now:
             self.digs += 1
-            self.magnet_ready = False
             self.field_dirty = True
             self.spawn_straws(dug_now)
             safe = self.resolve_items(dug_now)

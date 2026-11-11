@@ -98,7 +98,7 @@ class LoopMixin:
                         self.clover_time = 0.0
                         self.compass_hint = None
                         self.compass_quadrant = None
-                        self.magnet_ready = False
+                        self.energy_time = 0.0
                         self.streak = 0
                         self.bandages = min(self.bandages,
                                             self.bandage_cap())
@@ -247,6 +247,12 @@ class LoopMixin:
                     if self.clover_time == 0.0:
                         self.add_message("Клевер больше не действует",
                                          GREEN_MSG)
+
+                if self.energy_time > 0:
+                    self.energy_time = max(0.0, self.energy_time - dt)
+                    if self.energy_time == 0.0:
+                        self.add_message("Энергетик закончился",
+                                         STAMINA_BLUE)
 
                 if self.poison_time > 0:
                     self.poison_time -= dt

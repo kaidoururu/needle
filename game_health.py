@@ -18,6 +18,13 @@ class HealthMixin:
 
 
 
+    def bandage_heal(self):
+        """Сколько здоровья лечит один бинт: растёт с уровнем аптеки,
+        чтобы поспевать за укусом и ядом (см. BANDAGE_HEAL_*)."""
+        return BANDAGE_HEAL_BASE + BANDAGE_HEAL_STEP * self.bnd_lvl
+
+
+
     def antidote_cap(self):
         return ANTIDOTE_CAP_BASE + ANTIDOTE_CAP_STEP * self.bnd_lvl
 
@@ -64,7 +71,8 @@ class HealthMixin:
             self.add_message("Здоровье полное — бинт не нужен", GREEN_MSG)
             return
         self.bandages -= 1
-        self.health = min(self.max_health, self.health + BANDAGE_HEAL)
+        self.health = min(self.max_health,
+                          self.health + self.bandage_heal())
         self.add_message("Бинт использован", GREEN_MSG)
         self.tut_bandage_done = True
         if self.tutorial and self.tutorial.get("item") == "bandage":

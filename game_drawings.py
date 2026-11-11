@@ -353,8 +353,8 @@ class DrawingsMixin:
                                int(s * 0.52))
         elif key == "compass":
             self.draw_compass(surf, c, c, s)
-        elif key == "magnet":
-            self.draw_magnet(surf, c, c, s)
+        elif key == "energy":
+            self.draw_energy(surf, c, c, s)
         elif key == "clover":
             self.draw_clover(surf, c, c, s)
 
@@ -383,26 +383,38 @@ class DrawingsMixin:
 
 
 
-    def draw_magnet(self, surf, cx, cy, d, alpha=None):
+    def draw_energy(self, surf, cx, cy, d, alpha=None):
+        """Энергетик: банка с молнией. Во время действия рывки не
+        тратят силу (ENERGY_TIME секунд)."""
         r = d // 2
-        mg = pygame.Surface((d, d), pygame.SRCALPHA)
-        lw = max(4, r // 3)
-        pygame.draw.rect(mg, (200, 60, 60),
-                         (r - lw, int(r * 0.25), lw, int(r * 0.75)),
-                         border_radius=lw // 2)
-        pygame.draw.rect(mg, (70, 90, 200),
-                         (r + 1, int(r * 0.25), lw, int(r * 0.75)),
-                         border_radius=lw // 2)
-        pygame.draw.circle(mg, (225, 215, 200),
-                           (r, r + int(r * 0.2)), int(r * 0.72), lw)
-        pygame.draw.rect(mg, (225, 215, 200),
-                         (r - lw - 1, r + int(r * 0.45), lw + 2,
-                          int(r * 0.3)))
-        pygame.draw.rect(mg, (225, 215, 200),
-                         (r + 1, r + int(r * 0.45), lw + 2, int(r * 0.3)))
+        en = pygame.Surface((d, d), pygame.SRCALPHA)
+        # корпус банки: скруглённый прямоугольник с тёмной окантовкой
+        cw, ch = int(r * 0.9), int(r * 1.5)
+        x0, y0 = r - cw // 2, r - ch // 2
+        pygame.draw.rect(en, ENERGY_CAN, (x0, y0, cw, ch),
+                         border_radius=max(3, cw // 4))
+        pygame.draw.rect(en, ENERGY_EDGE, (x0, y0, cw, ch),
+                         max(2, r // 14), border_radius=max(3, cw // 4))
+        # светлые полоски крышки сверху и донышка снизу
+        stripe = max(3, ch // 14)
+        pygame.draw.rect(en, (240, 232, 210),
+                         (x0 + 2, y0 + stripe // 2 + 2, cw - 4, stripe))
+        pygame.draw.rect(en, (240, 232, 210),
+                         (x0 + 2, y0 + ch - stripe // 2 - 2 - stripe,
+                          cw - 4, stripe))
+        # молния по центру банки
+        pts = [(r + int(cw * 0.20), y0 + int(ch * 0.24)),
+               (r - int(cw * 0.30), y0 + int(ch * 0.54)),
+               (r - int(cw * 0.06), y0 + int(ch * 0.56)),
+               (r - int(cw * 0.20), y0 + int(ch * 0.78)),
+               (r + int(cw * 0.30), y0 + int(ch * 0.44)),
+               (r + int(cw * 0.06), y0 + int(ch * 0.42))]
+        pygame.draw.polygon(en, ICON_BOLT, pts)
+        pygame.draw.lines(en, ENERGY_EDGE, False, pts,
+                          max(2, r // 16))
         if alpha is not None:
-            mg.set_alpha(alpha)
-        surf.blit(mg, (int(cx - r), int(cy - r)))
+            en.set_alpha(alpha)
+        surf.blit(en, (int(cx - r), int(cy - r)))
 
 
 

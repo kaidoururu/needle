@@ -286,8 +286,8 @@ class UIMixin:
         icons = []
         if self.compass_quadrant:
             icons.append(("compass", None))
-        if self.magnet_ready:
-            icons.append(("magnet", None))
+        if self.energy_time > 0:
+            icons.append(("energy", self.energy_time / ENERGY_TIME))
         if self.clover_time > 0:
             icons.append(("clover", self.clover_time / CLOVER_TIME))
         if not icons:

@@ -38,6 +38,9 @@ class ShopMixin:
             surf.blit(icon, (panel.x + 12, panel.y + 20))
 
             heading = "%s   ур. %d" % (it_title, lvl)
+            if key == "bnd":
+                # у аптеки сразу видно, сколько лечит бинт на этом уровне
+                heading += "   лечит %d" % self.bandage_heal()
             surf.blit(self.font_shop_head.render(heading, True, GOLD),
                       (panel.x + 104, panel.y + 10))
             surf.blit(self.font_shop_desc.render(it_desc, True, TEXT),

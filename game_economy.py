@@ -141,7 +141,8 @@ class EconomyMixin:
         if key == "health":
             return "ЗДОРОВЬЕ", "Больше запас здоровья"
         if key == "bnd":
-            return "АПТЕЧКА", ("Бинтов: %d/%d   Противоядий: %d/%d"
+            return "АПТЕЧКА", ("Бинтов: %d/%d · лечат %d   Противоядий: %d/%d"
                                % (self.bandages, self.bandage_cap(),
+                                  self.bandage_heal(),
                                   self.antidotes, self.antidote_cap()))
         return "", ""

@@ -93,9 +93,9 @@ class FieldMixin:
         rare_roll = random.random()
         if rare_roll < P_COMPASS:
             return "compass"
-        if rare_roll < P_COMPASS + P_MAGNET:
-            return "magnet"
-        if rare_roll < P_COMPASS + P_MAGNET + P_CLOVER:
+        if rare_roll < P_COMPASS + P_ENERGY:
+            return "energy"
+        if rare_roll < P_COMPASS + P_ENERGY + P_CLOVER:
             return "clover"
         return None
 
@@ -227,8 +227,8 @@ class FieldMixin:
                         self.draw_antidote(surf, cx, cy, icon_d)
                     elif c["item"] == "compass":
                         self.draw_compass(surf, cx, cy, icon_d)
-                    elif c["item"] == "magnet":
-                        self.draw_magnet(surf, cx, cy, icon_d)
+                    elif c["item"] == "energy":
+                        self.draw_energy(surf, cx, cy, icon_d)
                     elif c["item"] == "clover":
                         self.draw_clover(surf, cx, cy, icon_d)
 

@@ -26,7 +26,7 @@ class EffectsMixin:
             "bandage": "БИНТ!",
             "antidote": "ПРОТИВОЯДИЕ!",
             "compass": "КОМПАС!",
-            "magnet": "МАГНИТ!",
+            "energy": "ЭНЕРГЕТИК!",
             "clover": "КЛЕВЕР!",
         }
         self.notice = {"item": item, "title": titles.get(item, item),
@@ -65,13 +65,13 @@ class EffectsMixin:
             self.draw_antidote(self.screen, icon_cx, icon_cy, 110, alpha)
         elif n["item"] == "compass":
             self.draw_compass(self.screen, icon_cx, icon_cy, 110, alpha)
-        elif n["item"] == "magnet":
-            self.draw_magnet(self.screen, icon_cx, icon_cy, 110, alpha)
+        elif n["item"] == "energy":
+            self.draw_energy(self.screen, icon_cx, icon_cy, 110, alpha)
         elif n["item"] == "clover":
             self.draw_clover(self.screen, icon_cx, icon_cy, 110, alpha)
 
         color = GREEN_MSG if n["item"] in ("bandage", "antidote",
-                                           "compass", "magnet",
+                                           "compass", "energy",
                                            "clover") else RED
         t1 = self.font_big.render(n["title"], True, color)
         t1.set_alpha(alpha)

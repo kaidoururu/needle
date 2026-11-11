@@ -71,7 +71,7 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
 
         # новые механики: редкие находки, серия, золотая игла
         self.compass_hint = None
-        self.magnet_ready = False
+        self.energy_time = 0.0
         self.clover_time = 0.0
         self.streak = 0
         self.golden_needle = False
@@ -181,7 +181,7 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         self.health = self.max_health
         self.compass_hint = None
         self.compass_quadrant = None
-        self.magnet_ready = False
+        self.energy_time = 0.0
         self.clover_time = 0.0
         self.streak = 0
         self.won = False
