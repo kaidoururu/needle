@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
-# BUILD: v5-21 (шаги 1-11 + доделка 16 + пункт 20 выполнены —
-# см. PLAN.md)
+# BUILD: v5-23 (сделан пункт 1 списка PLAN.md: лог ошибок —
+# любой сбой пишется в crash_log.txt с датой; см. PLAN.md)
 # Игра "Игла в стоге сена" на pygame.
 # Справка по игре — кнопка «?» в панели внизу, всплывает как лавка.
 
+import datetime
+import os
+import datetime
+import os
 import sys
 
 try:
@@ -121,6 +125,14 @@ RISK_PULSE_SPEED = 2.2      # скорость пульса
 RISK_PULSE_MIN_ALPHA = 10   # минимальная плотность красного
 RISK_PULSE_MAX_ALPHA = 55   # максимальная (пульс слабый, ненавязчивый)
 
+# ---------- круг большой лопаты ----------
+# Сторона рывка от DIG_CIRCLE_MIN_SIDE и больше копается кругом: клетка
+# попадает, если её центр лежит в радиусе DIG_CIRCLE_K x сторона от точки
+# клика. K = 0.564 (= 1/sqrt(pi)) — площадь круга как у квадрата той же
+# стороны, так что добыча за рывок не меняется.
+DIG_CIRCLE_MIN_SIDE = 3
+DIG_CIRCLE_K = 0.564
+
 # ---------- серии рывков ----------
 STREAK_GOAL = 10
 STREAK_BONUS_BASE = 50     # x уровень монет за каждые 10 чистых рывков
@@ -186,3 +198,43 @@ ICON_COIN_DARK = (190, 140, 30)
 ANTIDOTE_GLASS = (215, 235, 225)
 ANTIDOTE_LIQUID = (80, 190, 110)
 ANTIDOTE_CORK = (170, 120, 60)
+
+# ---------- лог ошибок (crash_log.txt) ----------
+# Файл нужен, чтобы игра не закрывалась молча: после внезапного закрытия
+# можно открыть лог и прислать текст ошибки.
+LOG_FILE = "crash_log.txt"
+LOG_MAX_BYTES = 64 * 1024   # старые записи обрезаем, лог не разрастается
+
+
+def log_crash(text):
+    """Дописать отчёт о сбое в crash_log.txt (с датой и временем).
+
+    Место ищем так: на Android сначала пробуем папку Downloads — файл
+    оттуда видно в файловом менеджере и удобно переслать; не получилось —
+    пишем рядом с файлами игры (там же, где hay_save.json). Ничего не
+    открылось — печатаем в stderr.
+    """
+    stamp = datetime.datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+    block = "===== {} =====\n{}\n\n".format(stamp, text.rstrip())
+    places = []
+    downloads = "/storage/emulated/0/Download"
+    if os.path.isdir(downloads):
+        places.append(downloads)
+    places.append(os.getcwd())
+    for place in places:
+        path = os.path.join(place, LOG_FILE)
+        try:
+            old = ""
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    old = f.read()
+            except OSError:
+                pass
+            if len(old) > LOG_MAX_BYTES:
+                old = old[-LOG_MAX_BYTES // 2:]
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(old + block)
+            return
+        except OSError:
+            continue
+    sys.stderr.write(block)

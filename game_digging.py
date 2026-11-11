@@ -152,32 +152,50 @@ class DiggingMixin:
 
 
     def dig_at(self, pos):
-        cx = int((pos[0] - self.field_rect.x) / self.cw)
-        cy = int((pos[1] - self.field_rect.y) / self.ch)
+        fx = pos[0] - self.field_rect.x
+        fy = pos[1] - self.field_rect.y
+        cx = int(fx / self.cw)
+        cy = int(fy / self.ch)
         if not (0 <= cx < self.cols and 0 <= cy < self.rows):
             return
         side = self.dig_side()
         if self.magnet_ready:
             side = min(14, side * MAGNET_MULT)
-        r = (side - 1) // 2
         targets = []
-        for dy in range(-r, side - r):
-            for dx in range(-r, side - r):
-                x, y = cx + dx, cy + dy
-                if 0 <= x < self.cols and 0 <= y < self.rows:
-                    i = y * self.cols + x
-                    if not self.cells[i]["dug"]:
-                        targets.append(i)
+        if side >= DIG_CIRCLE_MIN_SIDE:
+            # круг: клетки, чьи центры попадают в радиус от точки клика
+            r2 = (DIG_CIRCLE_K * side) ** 2
+            ux = fx / self.cw          # клик в клеточных координатах
+            uy = fy / self.ch
+            span = int(DIG_CIRCLE_K * side) + 1
+            for y in range(cy - span, cy + span + 1):
+                for x in range(cx - span, cx + span + 1):
+                    if not (0 <= x < self.cols and 0 <= y < self.rows):
+                        continue
+                    dx = x + 0.5 - ux
+                    dy = y + 0.5 - uy
+                    if dx * dx + dy * dy <= r2:
+                        i = y * self.cols + x
+                        if not self.cells[i]["dug"]:
+                            targets.append(i)
+        else:
+            r = (side - 1) // 2
+            for dy in range(-r, side - r):
+                for dx in range(-r, side - r):
+                    x, y = cx + dx, cy + dy
+                    if 0 <= x < self.cols and 0 <= y < self.rows:
+                        i = y * self.cols + x
+                        if not self.cells[i]["dug"]:
+                            targets.append(i)
         random.shuffle(targets)
         if not targets:
             return
-        if self.stamina < 1:
+        # рывок целиком или никак: сил должно хватить на все клетки сразу
+        if self.stamina < len(targets):
             self.add_message("Не хватает сил", RED)
             return
         dug_now = []
         for i in targets:
-            if self.stamina < 1:
-                break
             self.stamina -= 1
             self.cells[i]["dug"] = True
             dug_now.append(i)
