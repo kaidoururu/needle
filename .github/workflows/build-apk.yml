@@ -9,7 +9,8 @@ env:
   # SDK and NDK are preinstalled on the runner — no dl.google.com downloads
   APP_ANDROID_SDK_PATH: /usr/local/lib/android/sdk
   APP_ANDROID_NDK_PATH: /usr/local/lib/android/sdk/ndk/27.3.13750724
-  # pyjnius 1.7.0 needs this to build with Cython 3 when cross-compiling
+  # pyjnius 1.7.0 uses this variable to switch to Cython 3 mode when
+  # cross-building for Android (see pyjnius docs/setup.py).
   ANDROID_PYJNUS_CYTHON_3: "1"
 
 jobs:
@@ -71,10 +72,10 @@ jobs:
       - name: Show error details on failure
         if: failure()
         run: |
-          echo "==================== REAL ERROR CONTEXT ===================="
-          grep -n -B5 -A60 "Error compiling Cython file" build_log.txt | tail -n 250 || true
-          echo "==================== LAST 120 LOG LINES ===================="
-          tail -n 120 build_log.txt
+          echo "==================== ERROR LINES (without env dump) ===================="
+          grep -v '^#     ' build_log.txt | grep -n -i -E "error|failed|exception|Traceback|failed to" | tail -n 60 || true
+          echo "==================== LAST 400 LOG LINES (without env dump) ===================="
+          grep -v '^#     ' build_log.txt | tail -n 400
 
       - name: Upload build log
         if: always()
