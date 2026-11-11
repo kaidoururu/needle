@@ -39,7 +39,7 @@ class DiggingMixin:
             self.poison_flash = 1.0
             if (not getattr(self, "tut_antidote_done", False)
                     and self.antidotes > 0):
-                self.tutorial = {"item": "antidote"}
+                self.start_tutorial("antidote")
             self.show_notice(item)
             self.notice["sub"] = ("Отравление! Здоровье: %d -> %d"
                                   % (int(round(old)),
@@ -64,7 +64,7 @@ class DiggingMixin:
                 self.dead = True
             if (not getattr(self, "tut_bandage_done", False)
                     and self.bandages > 0 and self.health > 0):
-                self.tutorial = {"item": "bandage"}
+                self.start_tutorial("bandage")
         elif item == "bandage":
             cap = self.bandage_cap()
             if self.bandages < cap:

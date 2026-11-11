@@ -17,10 +17,12 @@ class LoopMixin:
         for name, rect in self.menu_buttons.items():
             if rect.collidepoint(pos):
                 if name == "continue":
+                    self.intro_open = True
                     self.state = "game"
                     return None
                 if name == "new":
                     self.start_new_game()
+                    self.intro_open = True
                     self.state = "game"
                     return None
                 if name == "quit":
@@ -59,6 +61,29 @@ class LoopMixin:
 
     # ---------- обработка кликов в игре ----------
     def handle_click(self, pos):
+        if self.intro_open:
+            # приветствие блокирует все клики, кроме кнопки «Понятно!»
+            if self.intro_button.collidepoint(pos):
+                self.intro_open = False
+                self.idle_time = 0.0
+                self.idle_hint = None
+            return
+        if self.tutorial:
+            # во время урока клик работает только в подсвеченную кнопку
+            rect = self.tutorial_target()
+            if rect is not None and rect.collidepoint(pos):
+                item = self.tutorial["item"]
+                if item == "bandage":
+                    self.use_bandage()
+                elif item == "antidote":
+                    self.use_antidote()
+                elif item == "shop":
+                    self.tut_shop_done = True
+                    self.tutorial = None
+                    self.save_game()
+                    self.open_shop()
+            return
+
         if self.dead:
             for name, rect in self.death_buttons.items():
                 if rect.collidepoint(pos):
@@ -103,6 +128,17 @@ class LoopMixin:
                                   self.help_offset())
             if not visible.collidepoint(pos):
                 self.close_help()
+            else:
+                # кнопки страниц «НАЗАД»/«ВПЕРЁД» внизу панели
+                for name, rect in self.help_nav.items():
+                    if rect.move(0, top).collidepoint(pos):
+                        if name == "prev":
+                            self.help_page = max(0, self.help_page - 1)
+                        else:
+                            self.help_page = min(self.help_pages - 1,
+                                                 self.help_page + 1)
+                        self.help_surf = None   # перерисовать страницу
+                        break
             return
 
         if self.won:
@@ -199,7 +235,8 @@ class LoopMixin:
             dt = self.clock.tick(60) / 1000.0
             self.time += dt
 
-            if self.state == "game":
+            if (self.state == "game" and not self.intro_open
+                and not self.tutorial):
                 if self.stamina < self.max_stamina:
                     self.stamina = min(self.max_stamina,
                                        self.stamina +
@@ -269,8 +306,18 @@ class LoopMixin:
                     self.build_ui()
                     self.field_dirty = True
                 elif event.type == pygame.KEYDOWN:
+                    if self.help_slide > 0.5:
+                        # листать справку стрелками
+                        if event.key == pygame.K_LEFT:
+                            self.help_page = max(0, self.help_page - 1)
+                            self.help_surf = None
+                        elif event.key == pygame.K_RIGHT:
+                            self.help_page = min(self.help_pages - 1,
+                                                 self.help_page + 1)
+                            self.help_surf = None
                     if event.key == pygame.K_ESCAPE:
-                        if self.state == "game":
+                        if (self.state == "game" and not self.intro_open
+                                and not self.tutorial):
                             self.open_pause()
                         elif self.state == "pause":
                             self.state = "game"
@@ -285,14 +332,18 @@ class LoopMixin:
                             running = False
                     elif self.state == "pause":
                         self.handle_pause_click(pos)
+                    elif self.intro_open:
+                        self.handle_click(pos)
                     else:
                         if (not self.won and not self.dead
+                                and not self.tutorial
                                 and self.help_button.collidepoint(pos)):
                             if self.help_target > 0.5:
                                 self.close_help()
                             else:
                                 self.open_help()
                         elif (not self.won and not self.dead
+                                and not self.tutorial
                                 and self.pause_button.collidepoint(pos)):
                             self.open_pause()
                         else:
@@ -312,7 +363,8 @@ class LoopMixin:
                 self.draw_help_panel()
                 self.draw_tutorial()
                 self.draw_idle_hint()
-                if not self.won and not self.dead:
+                self.draw_intro()
+                if not self.won and not self.dead and not self.tutorial:
                     self.draw_help_button()
                     self.draw_pause_button()
                 if self.state == "pause":

@@ -11,7 +11,7 @@ from game_economy import EconomyMixin
 from game_ui import UIMixin
 from game_drawings import DrawingsMixin
 from game_shop import ShopMixin
-from game_help import HelpMixin
+from game_help import HelpMixin, HELP_PAGES
 from game_screens import ScreensMixin
 from game_digging import DiggingMixin
 from game_loop import LoopMixin
@@ -88,6 +88,9 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         self.help_target = 0.0
         self.help_surf = None
         self.help_panel_h = 0
+        self.help_page = 0          # открытая страница справки
+        self.help_pages = len(HELP_PAGES)
+        self.help_nav = {}          # кнопки «НАЗАД»/«ВПЕРЁД» внизу панели
 
         self.shop_slide = 0.0
         self.shop_target = 0.0
@@ -108,10 +111,15 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         # обучение и подсказки простоя
         self.tut_bandage_done = False
         self.tut_antidote_done = False
+        self.tut_shop_done = False
         self.mercy_used = False      # милость судьбы: раз за уровень
         self.tutorial = None
         self.idle_time = 0.0
         self.idle_hint = None
+
+        # приветствие «КАК ИГРАТЬ»: показывается при каждом входе из меню
+        self.intro_open = False
+        self.intro_button = pygame.Rect(0, 0, 0, 0)
 
         self.main_buttons = {}
         self.shop_buttons = {}
@@ -187,6 +195,7 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         self.straws = []
         self.tut_bandage_done = False
         self.tut_antidote_done = False
+        self.tut_shop_done = False
         self.mercy_used = False
         self.tutorial = None
         self.idle_time = 0.0

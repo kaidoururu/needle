@@ -69,6 +69,11 @@ class EconomyMixin:
             self.money += self.hay_value
             self.hay = 0
             self.hay_value = 0
+            # урок «Лавка»: после первой продажи при накопленной сумме
+            if (not self.tut_shop_done
+                    and self.money >= TUT_SHOP_MIN_MONEY
+                    and not self.won and not self.dead):
+                self.start_tutorial("shop")
             self.save_game()
 
 

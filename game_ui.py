@@ -27,6 +27,7 @@ class UIMixin:
         self.antidote_btn = pygame.Rect(w - 234, hud_top + 98, 92, 56)
         self.help_button = pygame.Rect(w - 300, hud_top + 96, 58, 58)
         self.pause_button = pygame.Rect(w - 370, hud_top + 96, 58, 58)
+        self.intro_button = pygame.Rect(0, 0, 0, 0)
 
         self.shop_panel_h = min(SHOP_H, h)
         self.shop_panels = []
@@ -325,36 +326,87 @@ class UIMixin:
                                 math.pi / 2,
                                 math.pi / 2 + 2 * math.pi * frac, 4)
 
-    # ---------- обучение: подсветка бинта/противоядия ----------
+    # ---------- обучение: спотлайт (кнопка поверх тьмы) ----------
+
+    def tutorial_target(self):
+        """Кнопка текущего урока обучения (или None)."""
+        if not self.tutorial:
+            return None
+        item = self.tutorial.get("item")
+        if item == "bandage":
+            return self.bandage_btn
+        if item == "antidote":
+            return self.antidote_btn
+        if item == "shop":
+            return self.main_buttons["shop"]
+        return None
+
+    def start_tutorial(self, name):
+        """Включить урок: подсветить кнопку, заморозить игру,
+        погасить подсказку простоя."""
+        self.tutorial = {"item": name}
+        self.idle_hint = None
+        self.idle_time = 0.0
 
     def draw_tutorial(self):
+        """Спотлайт-обучение: экран накрыт тьмой с «вырезанным» светлым
+        пятном вокруг кнопки урока. Кнопка перерисовывается поверх тьмы,
+        вокруг неё пульсирует золотая рамка, сверху стрелка и плашка
+        с текстом урока."""
         if not self.tutorial or self.won or self.dead:
             return
+        rect = self.tutorial_target()
+        if rect is None:
+            return
+        w, h = self.screen.get_size()
         item = self.tutorial.get("item")
-        rect = self.bandage_btn if item == "bandage" else self.antidote_btn
+        # страховка: неизвестный урок снимаем до отрисовки тьмы
+        if item not in ("bandage", "antidote", "shop"):
+            self.tutorial = None
+            return
+        overlay = pygame.Surface((w, h), pygame.SRCALPHA)
+        overlay.fill((20, 14, 8, TUT_DARK_ALPHA))
+        hole = rect.inflate(28, 28)
+        pygame.draw.rect(overlay, (0, 0, 0, 0), hole, border_radius=12)
+        self.screen.blit(overlay, (0, 0))
+        # сама кнопка — поверх тьмы
+        if item == "bandage":
+            # кнопка во время урока всегда рисуется активной
+            self.draw_pill_button(rect, "bandage", True,
+                                  "%d/%d" % (self.bandages,
+                                             self.bandage_cap()))
+            text = "Нажмите на бинт, чтобы вылечиться!"
+        elif item == "antidote":
+            self.draw_pill_button(rect, "antidote", True,
+                                  "%d/%d" % (self.antidotes,
+                                             self.antidote_cap()))
+            text = "Нажмите на противоядие, чтобы вылечиться!"
+        else:  # item == "shop"
+            self.draw_button(rect, "Лавка улучшений")
+            text = ("Монет накоплено: %d. Откройте лавку улучшений!"
+                    % self.money)
+        # пульсирующая золотая рамка вокруг кнопки
         p = 0.5 + 0.5 * math.sin(self.time * 6.0)
         grow = int(6 * p)
         pygame.draw.rect(self.screen, GOLD,
                          rect.inflate(grow * 2, grow * 2), 4,
                          border_radius=12)
-        if item == "bandage":
-            text = "Нажмите на бинт, чтобы вылечиться!"
-        else:
-            text = "Нажмите на противоядие, чтобы вылечиться!"
+        # стрелка и плашка с текстом урока
         surf = self.font_mid.render(text, True, GOLD)
-        w = self.screen.get_width()
         y = self.field_rect.top + 110
         pill = pygame.Surface((surf.get_width() + 26,
                                surf.get_height() + 16), pygame.SRCALPHA)
         pygame.draw.rect(pill, MSG_BG + (230,), pill.get_rect(),
                          border_radius=12)
+        pygame.draw.rect(pill, GOLD + (230,), pill.get_rect(), 2,
+                         border_radius=12)
         self.screen.blit(pill, pill.get_rect(center=(w // 2, y)))
         self.screen.blit(surf, surf.get_rect(center=(w // 2, y)))
-        arrow_y = rect.top - 30
+        arrow_y = rect.top - 34 - grow
         pygame.draw.polygon(self.screen, GOLD,
-                            [(rect.centerx, rect.top - 6),
-                             (rect.centerx - 11, arrow_y),
-                             (rect.centerx + 11, arrow_y)])
+                            [(rect.centerx, rect.top - 10),
+                             (rect.centerx - 12, arrow_y),
+                             (rect.centerx + 12, arrow_y)])
 
     # ---------- подсказка простоя ----------
 
@@ -388,3 +440,58 @@ class UIMixin:
             pygame.draw.rect(self.screen, GOLD,
                              r.inflate(int(8 * p), int(8 * p)), 3,
                              border_radius=4)
+
+    # ---------- приветствие «КАК ИГРАТЬ» ----------
+
+    def draw_intro(self):
+        """Панель приветствия при каждом входе из меню: суть игры и
+        кнопка «Понятно!». Игра на паузе (обновления пропускаются в
+        game_loop.run), клики мимо панели блокированы."""
+        if not self.intro_open:
+            return
+        w, h = self.screen.get_size()
+        overlay = pygame.Surface((w, h), pygame.SRCALPHA)
+        overlay.fill((20, 14, 8, 175))
+        self.screen.blit(overlay, (0, 0))
+
+        # Брифинг по плану п.20: четыре короткие строки вместо шести.
+        # Каждая строка короче ширины панели (~48 знаков) — не переносится.
+        texts = [
+            "Копайте клетки: в стоге спрятана игла.",
+            "Бинт лечит, противоядие снимает отравление.",
+            "Сено продавайте, монеты тратьте в лавке.",
+            "Нашли иглу — идите дальше. Детали — «?».",
+        ]
+        pad = 26
+        line_h = 40
+        pw = min(700, w - 32)
+        max_w = pw - 2 * pad
+        rows = []
+        for t in texts:
+            cur = ""
+            for wd in t.split():
+                test = (cur + " " + wd).strip()
+                if self.font_small.size(test)[0] <= max_w:
+                    cur = test
+                else:
+                    if cur:
+                        rows.append(cur)
+                    cur = wd
+            if cur:
+                rows.append(cur)
+
+        ph = 92 + len(rows) * line_h + 86
+        px, py = (w - pw) // 2, (h - ph) // 2
+        panel = pygame.Surface((pw, ph), pygame.SRCALPHA)
+        pygame.draw.rect(panel, (25, 18, 10, 245), panel.get_rect(),
+                         border_radius=18)
+        pygame.draw.rect(panel, (255, 210, 80, 230), panel.get_rect(), 4,
+                         border_radius=18)
+        self.screen.blit(panel, (px, py))
+        self.draw_centered("КАК ИГРАТЬ", self.font_shop_head, py + 44, GOLD)
+        for i, row in enumerate(rows):
+            self.draw_centered(row, self.font_small, py + 92 + i * line_h)
+        bw, bh = 300, 58
+        self.intro_button = pygame.Rect((w - bw) // 2,
+                                        py + ph - bh - 20, bw, bh)
+        self.draw_button(self.intro_button, "Понятно!", ok=True)

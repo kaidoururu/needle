@@ -32,6 +32,7 @@ class SaveMixin:
             "tut_bandage_done": self.tut_bandage_done,
             "tut_antidote_done": self.tut_antidote_done,
             "mercy_used": self.mercy_used,
+            "tut_shop_done": self.tut_shop_done,
         }
         try:
             with open(SAVE_FILE, "w", encoding="utf-8") as f:
@@ -71,5 +72,7 @@ class SaveMixin:
             self.tut_antidote_done = bool(
                 data.get("tut_antidote_done", False))
             self.mercy_used = bool(data.get("mercy_used", False))
+            self.tut_shop_done = bool(
+                data.get("tut_shop_done", False))
         except (TypeError, ValueError):
             pass
