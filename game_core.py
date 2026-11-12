@@ -27,25 +27,17 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         pygame.init()
         pygame.font.init()
         pygame.display.set_caption("Игла в стоге сена")
-        # пункт 11: рисуем в виртуальный холст CANVAS_W x CANVAS_H,
-        # а на дисплей выводим уже растянутую копию — интерфейс одинаково
-        # крупный и на ПК, и на Android. На Android окно открывается
-        # на весь экран.
+        # пункт 11: на Android окно открывается на весь экран телефона,
+        # на ПК — как раньше, окно 720x1280 с изменяемым размером
         if ON_ANDROID:
-            self.real_screen = pygame.display.set_mode((0, 0),
-                                                       pygame.FULLSCREEN)
+            self.display = pygame.display.set_mode((0, 0),
+                                                   pygame.FULLSCREEN)
         else:
-            self.real_screen = pygame.display.set_mode(
+            self.display = pygame.display.set_mode(
                 (CANVAS_W, CANVAS_H), pygame.RESIZABLE)
-        self.canvas = pygame.Surface((CANVAS_W, CANVAS_H)).convert()
-        # вся отрисовка (self.screen во всех примесях) идёт в холст
-        self.screen = self.canvas
-        self.view_scale = 1.0
-        self.view_x = 0
-        self.view_y = 0
-        self.view_w = CANVAS_W
-        self.view_h = CANVAS_H
-        self.update_view()
+        # виртуальный холст: вся отрисовка идёт в него, в конце кадра
+        # он растягивается на дисплей — интерфейс не мельчает на телефоне
+        self.screen = pygame.Surface((CANVAS_W, CANVAS_H)).convert()
         self.clock = pygame.time.Clock()
 
         self.font_big = None
@@ -154,45 +146,39 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
 
 
 
-    # ---------- вывод на экран (пункт 11) ----------
+    # ---------- холст и дисплей (пункт 11) ----------
 
-    def update_view(self):
-        """Пересчитать масштаб и положение холста под размер дисплея:
-        холст вписывается целиком, по центру, без искажения пропорций."""
-        real = pygame.display.get_surface()
-        if real is None:
-            return
-        rw, rh = real.get_size()
-        scale = min(rw / CANVAS_W, rh / CANVAS_H)
-        self.view_scale = scale
-        self.view_w = max(1, int(CANVAS_W * scale))
-        self.view_h = max(1, int(CANVAS_H * scale))
-        self.view_x = (rw - self.view_w) // 2
-        self.view_y = (rh - self.view_h) // 2
+    def canvas_transform(self):
+        """Масштаб и смещение холста на реальном дисплее.
+
+        Холст вписывается целиком, по центру, без искажений: всё поле и
+        интерфейс остаются видимыми при любом размере экрана."""
+        dw, dh = self.display.get_size()
+        scale = min(dw / CANVAS_W, dh / CANVAS_H)
+        return scale, (dw - CANVAS_W * scale) / 2.0, \
+            (dh - CANVAS_H * scale) / 2.0
 
     def map_to_canvas(self, pos):
-        """Координаты экрана -> координаты виртуального холста."""
-        x = (pos[0] - self.view_x) / self.view_scale
-        y = (pos[1] - self.view_y) / self.view_scale
-        return (int(x), int(y))
+        """Точка реального экрана -> точка виртуального холста.
 
-    def mouse_pos(self):
-        """Позиция мыши или тапа в координатах холста."""
-        return self.map_to_canvas(pygame.mouse.get_pos())
+        Нужна, чтобы тапы и клики попадали в кнопки и клетки поля при
+        любом масштабе вывода."""
+        scale, off_x, off_y = self.canvas_transform()
+        x = (pos[0] - off_x) / scale
+        y = (pos[1] - off_y) / scale
+        return (int(max(0, min(CANVAS_W, x))),
+                int(max(0, min(CANVAS_H, y))))
 
-    def present(self):
-        """Вывести холст на дисплей: масштабирование и flip."""
-        real = pygame.display.get_surface()
-        if real is None:
-            return
-        real.fill((0, 0, 0))
-        if (self.view_w, self.view_h) != self.canvas.get_size():
-            scaled = pygame.transform.smoothscale(
-                self.canvas, (self.view_w, self.view_h))
-            real.blit(scaled, (self.view_x, self.view_y))
-        else:
-            real.blit(self.canvas, (0, 0))
-        pygame.display.flip()
+    def draw_canvas(self):
+        """Растянуть холст на реальный дисплей (конец кадра)."""
+        scale, off_x, off_y = self.canvas_transform()
+        size = (max(1, int(CANVAS_W * scale)),
+                max(1, int(CANVAS_H * scale)))
+        out = pygame.transform.smoothscale(self.screen, size)
+        self.display.fill((0, 0, 0))
+        self.display.blit(out, (int(off_x), int(off_y)))
+
+
 
     def make_fonts(self):
         try:

@@ -313,11 +313,11 @@ class LoopMixin:
                         self.save_game()
                     running = False
                 elif event.type == pygame.VIDEORESIZE:
-                    # размер меняется у реального окна, холст остаётся
-                    # 720x1280 — пересчитываем только масштаб вывода
-                    self.real_screen = pygame.display.set_mode(
+                    # пункт 11: холст фиксированный, поле, шрифты и
+                    # интерфейс пересобирать не нужно — дисплей просто
+                    # получает новую поверхность под новый размер окна
+                    self.display = pygame.display.set_mode(
                         event.size, pygame.RESIZABLE)
-                    self.update_view()
                 elif event.type == pygame.KEYDOWN:
                     if self.help_slide > 0.5:
                         # листать справку стрелками
@@ -340,7 +340,8 @@ class LoopMixin:
                     pos = getattr(event, "pos", None)
                     if pos is None:
                         continue
-                    # координаты тапа переводим в систему холста
+                    # пункт 11: тап пришёл в экранных координатах —
+                    # пересчитываем в координаты виртуального холста
                     pos = self.map_to_canvas(pos)
                     if self.state == "menu":
                         if self.handle_menu_click(pos) == "quit":
@@ -384,7 +385,8 @@ class LoopMixin:
                     self.draw_pause_button()
                 if self.state == "pause":
                     self.draw_pause_screen()
-            self.present()
+            self.draw_canvas()
+            pygame.display.flip()
         pygame.quit()
 
 

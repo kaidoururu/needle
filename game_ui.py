@@ -62,7 +62,7 @@ class UIMixin:
 
 
     def draw_button(self, rect, text, enabled=True, ok=False, next_btn=False):
-        hovered = rect.collidepoint(self.mouse_pos())
+        hovered = rect.collidepoint(self.map_to_canvas(pygame.mouse.get_pos()))
         if not enabled:
             color = BTN_DISABLED
         elif next_btn:
@@ -141,7 +141,7 @@ class UIMixin:
 
 
     def draw_pill_button(self, rect, kind, can_use, count_text):
-        hovered = rect.collidepoint(self.mouse_pos())
+        hovered = rect.collidepoint(self.map_to_canvas(pygame.mouse.get_pos()))
         color = BTN_OK_HOVER if (hovered and can_use) else (
             BTN_OK if can_use else BTN_DISABLED)
         pygame.draw.rect(self.screen, color, rect, border_radius=10)
@@ -284,7 +284,7 @@ class UIMixin:
 
     def draw_pause_button(self):
         rect = self.pause_button
-        hovered = rect.collidepoint(self.mouse_pos())
+        hovered = rect.collidepoint(self.map_to_canvas(pygame.mouse.get_pos()))
         color = BTN_HOVER if hovered else BTN
         pygame.draw.rect(self.screen, color, rect, border_radius=10)
         pygame.draw.rect(self.screen, (30, 20, 10), rect, 2,

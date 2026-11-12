@@ -160,7 +160,7 @@ class HelpMixin:
 
     def draw_help_button(self):
         rect = self.help_button
-        hovered = rect.collidepoint(self.mouse_pos())
+        hovered = rect.collidepoint(self.map_to_canvas(pygame.mouse.get_pos()))
         color = BTN_HOVER if hovered else BTN
         pygame.draw.circle(self.screen, color, rect.center, rect.w // 2)
         pygame.draw.circle(self.screen, (30, 20, 10), rect.center,
