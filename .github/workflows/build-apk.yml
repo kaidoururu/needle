@@ -44,7 +44,7 @@ jobs:
       - name: Build APK
         run: |
           set -o pipefail
-          buildozer -v android debug 2>&1 | tee build_log.txt
+          buildozer -v android release 2>&1 | tee build_log.txt
 
       - name: Upload build log (always)
         if: always()
