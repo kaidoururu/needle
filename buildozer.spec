@@ -13,7 +13,7 @@ icon.filename = icon.png
 requirements = python3==3.10.12,hostpython3==3.10.12,pygame==2.6.1,pyjnius==1.7.0
 
 # Local patched pygame recipe (fix for pygame issue #4394)
-p4a.local_recipes = ./p4a-recipes
+p4a.local_recipes = ../../../../p4a-recipes/
 
 orientation = portrait
 fullscreen = True
