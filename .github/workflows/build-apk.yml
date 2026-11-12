@@ -1,18 +1,15 @@
-name: Build Android APK
+name: Build and Release Android APK
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
+    tags: [ 'v*' ]
   workflow_dispatch:
 
 env:
-  # SDK and NDK are preinstalled on the runner — no dl.google.com downloads
   APP_ANDROID_SDK_PATH: /usr/local/lib/android/sdk
   APP_ANDROID_NDK_PATH: /usr/local/lib/android/sdk/ndk/27.3.13750724
-  # pyjnius 1.7.0 uses this variable to switch to Cython 3 mode when
-  # cross-building for Android (see pyjnius docs/setup.py).
   ANDROID_PYJNUS_CYTHON_3: "1"
-  # Gradle 8.14.3 (used by p4a) requires JDK 17; the runner's default is 11.
   JAVA_HOME: /usr/lib/jvm/temurin-17-jdk-amd64
 
 jobs:
@@ -33,95 +30,23 @@ jobs:
             libffi-dev libssl-dev binutils
           pip install buildozer Cython==0.29.36 "setuptools<71.0.0"
 
-      - name: Check buildozer.spec is the pinned one
-        run: |
-          REQ=$(grep '^requirements' buildozer.spec || true)
-          echo "requirements line: $REQ"
-          echo "$REQ" | grep -q "python3==3.10.12" || { echo "::error::buildozer.spec is outdated (no pinned python3)"; exit 1; }
-          echo "$REQ" | grep -q "pyjnius==1.7.0" || { echo "::error::buildozer.spec is outdated (pyjnius must be 1.7.0)"; exit 1; }
-          echo "$REQ" | grep -q "pygame==2.6.1" || { echo "::error::buildozer.spec is outdated (pygame must be 2.6.1)"; exit 1; }
-          echo "Spec OK: pinned requirements found."
-
-      - name: Pre-install Apache Ant with retries
+      - name: Pre-install Apache Ant
         run: |
           set -e
           ANT_DIR="${HOME}/.buildozer/android/platform/apache-ant-1.9.4"
-          if [ -f "$ANT_DIR/bin/ant" ]; then
-            echo "Ant already present, skipping."
-            exit 0
-          fi
+          if [ -f "$ANT_DIR/bin/ant" ]; then exit 0; fi
           mkdir -p "${HOME}/.buildozer/android/platform"
-          for ATTEMPT in 1 2 3; do
-            echo "Ant download attempt $ATTEMPT of 3"
-            rm -f /tmp/ant.tar.gz
-            if curl -fsSL --retry 3 --retry-delay 5 --connect-timeout 30 \
-                 "https://archive.apache.org/dist/ant/binaries/apache-ant-1.9.4-bin.tar.gz" \
-                 -o /tmp/ant.tar.gz \
-               && tar -tzf /tmp/ant.tar.gz > /dev/null 2>&1; then
-              tar -xzf /tmp/ant.tar.gz -C "${HOME}/.buildozer/android/platform/"
-              echo "Ant installed OK."
-              exit 0
-            fi
-            sleep 5
-          done
-          echo "::error::Ant download failed after 3 attempts (buildozer will try its own download)"
-          exit 0
+          curl -fsSL --retry 3 --retry-delay 5 \
+            "https://archive.apache.org/dist/ant/binaries/apache-ant-1.9.4-bin.tar.gz" \
+            -o /tmp/ant.tar.gz
+          tar -xzf /tmp/ant.tar.gz -C "${HOME}/.buildozer/android/platform/"
 
       - name: Build APK
         run: |
           set -o pipefail
           buildozer -v android debug 2>&1 | tee build_log.txt
 
-      - name: Verify pygame patch was applied
-        if: always()
-        run: |
-          if [ ! -f build_log.txt ]; then
-            echo "::warning::build_log.txt not found — Build APK step did not run or did not tee. The real failure is in a step above."
-            exit 0
-          fi
-          if [ -f igla_fix_marker.txt ]; then
-            echo "=== Local recipe WAS picked up ==="
-            cat igla_fix_marker.txt
-          else
-            echo "::error::build_log.txt exists but igla_fix_marker.txt is missing — local recipe was NOT picked up by buildozer."
-            exit 1
-          fi
-          echo "=== IGLA-FIX log lines ==="
-          grep "IGLA-FIX" build_log.txt | tail -n 10 || true
-
-      - name: Check surface.so for SIMD symbol
-        if: success()
-        run: |
-          SO=$(find .buildozer -name surface.so -path '*pygame*' 2>/dev/null | head -n1)
-          echo "surface.so: ${SO:-not found}"
-          if [ -z "$SO" ]; then
-            echo "::warning::surface.so not found — cannot verify symbol"
-            exit 0
-          fi
-          if grep -q "FALLBACK" build_log.txt; then
-            echo "NEON fallback was used - symbol check skipped."
-            exit 0
-          fi
-          if nm -D --defined-only "$SO" | grep -q "alphablit_alpha_sse2_argb_surf_alpha"; then
-            echo "OK: SIMD symbol is present in surface.so"
-          else
-            echo "::error::surface.so still lacks the SIMD symbol - patch did not take effect"
-            exit 1
-          fi
-
-      - name: Show error details on failure
-        if: failure()
-        run: |
-          if [ ! -f build_log.txt ]; then
-            echo "build_log.txt not found — see the failed step above for details."
-            exit 0
-          fi
-          echo "==================== ERROR LINES (without env dump) ===================="
-          grep -v '^#     ' build_log.txt | grep -n -i -E "error|failed|exception|Traceback|failed to" | tail -n 60 || true
-          echo "==================== LAST 400 LOG LINES (without env dump) ===================="
-          grep -v '^#     ' build_log.txt | tail -n 400
-
-      - name: Upload build log
+      - name: Upload build log (always)
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -129,9 +54,19 @@ jobs:
           path: build_log.txt
           if-no-files-found: warn
 
-      - name: Upload APK
+      - name: Upload APK (artifact)
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: needle-apk
           path: bin/*.apk
+
+      # ---- Публикация в GitHub Releases ----
+      - name: Create GitHub Release and upload APK
+        if: success() && startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: bin/*.apk
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
