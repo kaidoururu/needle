@@ -101,6 +101,25 @@ class FieldMixin:
 
 
 
+    def dark_spots(self, n):
+        """Центры очагов тьмы: количество зависит от размера поля."""
+        count = max(DARK_SPOT_MIN, n // DARK_SPOT_PER_CELLS)
+        count = min(count, DARK_SPOT_MAX)
+        return [(random.random() * self.cols, random.random() * self.rows)
+                for _ in range(count)]
+
+
+    def dark_order(self, cell_idx, spots):
+        """Клетки в порядке удаления от тьмы: чем раньше в списке, тем
+        ближе к ближайшему центру очага. Расстояние до самого близкого
+        очага — клетки у стыка двух зон темнее одиночных."""
+        def dist(i):
+            x, y = i % self.cols + 0.5, i // self.cols + 0.5
+            return min((x - sx) ** 2 + (y - sy) ** 2
+                       for sx, sy in spots)
+        return sorted(cell_idx, key=dist)
+
+
     def build_field(self):
         w, h = self.screen.get_size()
         cell = self.cell_size()
@@ -110,9 +129,19 @@ class FieldMixin:
         self.cw = self.field_rect.w / self.cols
         self.ch = self.field_rect.h / self.rows
         n = self.cols * self.rows
+        # набор оттенков прежний (shade = U^SHADE_POWER на каждую клетку),
+        # но раскладываются они очагами: самый тёмный оттенок получает
+        # клетка, ближайшая к центру тьмы, светлые уходят к краям от
+        # очагов. Средний баланс ловушек и находок не меняется.
+        shades = sorted(random.random() ** SHADE_POWER for _ in range(n))
+        spots = self.dark_spots(n)
+        order = self.dark_order(range(n), spots)
+        shade_by_idx = [None] * n
+        for shade, i in zip(shades, order):
+            shade_by_idx[i] = shade
         self.cells = []
-        for _ in range(n):
-            shade = random.random() ** SHADE_POWER
+        for i in range(n):
+            shade = shade_by_idx[i]
             strokes = []
             for _ in range(3):
                 dx1 = random.random() * max(1, self.cw - 6)
