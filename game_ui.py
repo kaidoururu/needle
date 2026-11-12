@@ -62,7 +62,7 @@ class UIMixin:
 
 
     def draw_button(self, rect, text, enabled=True, ok=False, next_btn=False):
-        hovered = rect.collidepoint(pygame.mouse.get_pos())
+        hovered = rect.collidepoint(self.mouse_pos())
         if not enabled:
             color = BTN_DISABLED
         elif next_btn:
@@ -141,7 +141,7 @@ class UIMixin:
 
 
     def draw_pill_button(self, rect, kind, can_use, count_text):
-        hovered = rect.collidepoint(pygame.mouse.get_pos())
+        hovered = rect.collidepoint(self.mouse_pos())
         color = BTN_OK_HOVER if (hovered and can_use) else (
             BTN_OK if can_use else BTN_DISABLED)
         pygame.draw.rect(self.screen, color, rect, border_radius=10)
@@ -196,7 +196,21 @@ class UIMixin:
         self.draw_button(self.main_buttons["sell"],
                          "Продать сено (+%d)" % self.hay_value,
                          self.hay > 0)
-        self.draw_button(self.main_buttons["shop"], "Лавка улучшений")
+        shop_rect = self.main_buttons["shop"]
+        self.draw_button(shop_rect, "Лавка улучшений")
+        # подсветка лавки (пункт 8): когда денег хватает хотя бы на одно
+        # улучшение, кнопка мигает золотой рамкой — тем же языком, что
+        # уроки обучения и подсказка простоя. Во время урока рамку не
+        # рисуем (у спотлайта своя), под открытой лавкой и на экранах
+        # победы/смерти подсветка тоже не нужна.
+        if (self.state == "game" and not self.won and not self.dead
+                and not self.tutorial and self.shop_slide <= 0.5
+                and self.any_upgrade_affordable()):
+            p = 0.5 + 0.5 * math.sin(self.time * 6.0)
+            grow = int(6 * p)
+            pygame.draw.rect(self.screen, GOLD,
+                             shop_rect.inflate(grow * 2, grow * 2), 4,
+                             border_radius=12)
 
         if self.needle_found:
             self.draw_button(self.main_buttons["next"],
@@ -270,7 +284,7 @@ class UIMixin:
 
     def draw_pause_button(self):
         rect = self.pause_button
-        hovered = rect.collidepoint(pygame.mouse.get_pos())
+        hovered = rect.collidepoint(self.mouse_pos())
         color = BTN_HOVER if hovered else BTN
         pygame.draw.rect(self.screen, color, rect, border_radius=10)
         pygame.draw.rect(self.screen, (30, 20, 10), rect, 2,
@@ -348,6 +362,35 @@ class UIMixin:
         self.idle_hint = None
         self.idle_time = 0.0
 
+    def update_pending_tutorial(self):
+        """Отложенные уроки (пункт 10): ловушка ставит урок в очередь
+        с задержкой TUT_DELAY, чтобы игрок успел увидеть плашку
+        («Укус зверя!» / «Отравление!») до затемнения экрана. Урок
+        запускается, только если условия ещё в силе: игрок жив, урок
+        не пройден, лекарство в кармане, а для противоядия яд ещё
+        действует. Пока открыт другой урок — очередь ждёт."""
+        if self.won or self.dead:
+            self.pending_tutorial = {}
+            return
+        if self.tutorial:
+            return
+        now = self.time
+        for item in sorted(self.pending_tutorial,
+                           key=lambda k: self.pending_tutorial[k]):
+            if now < self.pending_tutorial[item]:
+                continue
+            del self.pending_tutorial[item]
+            if item == "bandage":
+                ok = not self.tut_bandage_done and self.bandages > 0
+            elif item == "antidote":
+                ok = (not self.tut_antidote_done and self.antidotes > 0
+                      and self.poison_time > 0)
+            else:
+                ok = False
+            if ok:
+                self.start_tutorial(item)
+                break
+
     def draw_tutorial(self):
         """Спотлайт-обучение: экран накрыт тьмой с «вырезанным» светлым
         пятном вокруг кнопки урока. Кнопка перерисовывается поверх тьмы,
@@ -370,21 +413,24 @@ class UIMixin:
         pygame.draw.rect(overlay, (0, 0, 0, 0), hole, border_radius=12)
         self.screen.blit(overlay, (0, 0))
         # сама кнопка — поверх тьмы
+        # тексты уроков объясняют, что произошло и что делать —
+        # см. PLAN.md пункт 7
         if item == "bandage":
             # кнопка во время урока всегда рисуется активной
             self.draw_pill_button(rect, "bandage", True,
                                   "%d/%d" % (self.bandages,
                                              self.bandage_cap()))
-            text = "Нажмите на бинт, чтобы вылечиться!"
+            text = "Вас укусил зверь! Нажмите бинт — он восстановит здоровье."
         elif item == "antidote":
             self.draw_pill_button(rect, "antidote", True,
                                   "%d/%d" % (self.antidotes,
                                              self.antidote_cap()))
-            text = "Нажмите на противоядие, чтобы вылечиться!"
+            text = ("Вы отравились растением! Нажмите противоядие — "
+                    "оно снимет отравление.")
         else:  # item == "shop"
             self.draw_button(rect, "Лавка улучшений")
-            text = ("Монет накоплено: %d. Откройте лавку улучшений!"
-                    % self.money)
+            text = ("Монет накоплено: %d. Откройте лавку — купите "
+                    "улучшение на них!" % self.money)
         # пульсирующая золотая рамка вокруг кнопки
         p = 0.5 + 0.5 * math.sin(self.time * 6.0)
         grow = int(6 * p)

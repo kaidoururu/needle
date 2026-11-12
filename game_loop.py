@@ -38,6 +38,7 @@ class LoopMixin:
         self.shop_target = 0.0
         self.help_target = 0.0
         self.tutorial = None
+        self.pending_tutorial = {}
         self.idle_hint = None
 
 
@@ -113,6 +114,7 @@ class LoopMixin:
                         self.bite_flash = 0.0
                         self.poison_flash = 0.0
                         self.tutorial = None
+                        self.pending_tutorial = {}
                         self.save_game()
                         self.add_message(
                             "Вы возродились. Потеряно %d монет, сено "
@@ -296,6 +298,12 @@ class LoopMixin:
                                           self.help_slide -
                                           SLIDE_SPEED * dt)
 
+                # отложенные уроки (пункт 10): ловушка ставит урок в
+                # очередь, подсветка открывается через TUT_DELAY после
+                # плашки «Укус зверя!» / «Отравление!»
+                if self.pending_tutorial:
+                    self.update_pending_tutorial()
+
                 self.idle_time += dt
                 self.update_idle_hint()
 
@@ -305,12 +313,11 @@ class LoopMixin:
                         self.save_game()
                     running = False
                 elif event.type == pygame.VIDEORESIZE:
-                    self.screen = pygame.display.set_mode(
+                    # размер меняется у реального окна, холст остаётся
+                    # 720x1280 — пересчитываем только масштаб вывода
+                    self.real_screen = pygame.display.set_mode(
                         event.size, pygame.RESIZABLE)
-                    self.make_fonts()
-                    self.build_field()
-                    self.build_ui()
-                    self.field_dirty = True
+                    self.update_view()
                 elif event.type == pygame.KEYDOWN:
                     if self.help_slide > 0.5:
                         # листать справку стрелками
@@ -333,6 +340,8 @@ class LoopMixin:
                     pos = getattr(event, "pos", None)
                     if pos is None:
                         continue
+                    # координаты тапа переводим в систему холста
+                    pos = self.map_to_canvas(pos)
                     if self.state == "menu":
                         if self.handle_menu_click(pos) == "quit":
                             running = False
@@ -375,7 +384,7 @@ class LoopMixin:
                     self.draw_pause_button()
                 if self.state == "pause":
                     self.draw_pause_screen()
-            pygame.display.flip()
+            self.present()
         pygame.quit()
 
 

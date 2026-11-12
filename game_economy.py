@@ -64,6 +64,17 @@ class EconomyMixin:
 
 
 
+    def any_upgrade_affordable(self):
+        """Истинно, если на текущие монеты можно купить хотя бы одно
+        улучшение из лавки (пункт 8: по этому признаку кнопка «Лавка
+        улучшений» подсвечивается пульсирующей рамкой)."""
+        return (self.money >= self.shovel_cost()
+                or self.money >= self.cap_cost()
+                or self.money >= self.regen_cost()
+                or self.money >= self.price_cost()
+                or self.money >= self.health_cost()
+                or self.money >= self.bnd_cost())
+
     def sell(self):
         if self.hay > 0:
             self.money += self.hay_value

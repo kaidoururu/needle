@@ -39,7 +39,9 @@ class DiggingMixin:
             self.poison_flash = 1.0
             if (not getattr(self, "tut_antidote_done", False)
                     and self.antidotes > 0):
-                self.start_tutorial("antidote")
+                # урок в очередь с задержкой (пункт 10): сначала игрок
+                # секунду видит плашку «Отравление!», потом подсветку
+                self.pending_tutorial["antidote"] = self.time + TUT_DELAY
             self.show_notice(item)
             self.notice["sub"] = ("Отравление! Здоровье: %d -> %d"
                                   % (int(round(old)),
@@ -64,7 +66,9 @@ class DiggingMixin:
                 self.dead = True
             if (not getattr(self, "tut_bandage_done", False)
                     and self.bandages > 0 and self.health > 0):
-                self.start_tutorial("bandage")
+                # урок в очередь с задержкой (пункт 10): сначала игрок
+                # секунду видит плашку «Укус зверя!», потом подсветку
+                self.pending_tutorial["bandage"] = self.time + TUT_DELAY
         elif item == "bandage":
             cap = self.bandage_cap()
             if self.bandages < cap:
@@ -108,13 +112,16 @@ class DiggingMixin:
 
     # ---------- копание ----------
     def resolve_items(self, dug_now):
-        """За один рывок срабатывают ВСЕ ловушки рывка: камень, зверь и
-        растение каждая отдельно. Клевер проверяется отдельно для каждой
-        ловушки и может спасти от части из них. Если сработала хоть одна
-        ловушка — найденные в этом же рывке бинты и противоядия теряются.
-        Редкие находки (компас, энергетик, клевер) достаются всегда и не
-        блокируются ловушками. Возвращает False, если сработала хотя бы
-        одна ловушка."""
+        """За один рывок срабатывает РОВНО ОДНА ловушка: из всех ловушек
+        рывка выбирается самая «плохая» по ITEM_PRIORITY (камень, потом
+        зверь, потом растение), остальные ловушки рывка игнорируются —
+        нельзя получить сразу несколько укусов или укус и отравление
+        одновременно. Клевер проверяется один раз для выбранной ловушки
+        и, если спасает, рывок остаётся чистым. Если сработала ловушка —
+        найденные в этом же рывке бинты и противоядия теряются. Редкие
+        находки (компас, энергетик, клевер) достаются всегда и не
+        блокируются ловушками. Возвращает False, если сработала
+        ловушка."""
         found = [i for i in dug_now if self.cells[i]["item"]]
         if not found:
             return True
@@ -125,21 +132,23 @@ class DiggingMixin:
         for it in found_items:
             if it in RARE_ITEMS:
                 self.trigger_item(it)
-        # ловушки — каждая отдельно, клевер спасает от каждой отдельно
+        # ловушки — ровно одна за рывок: из найденных берём самую «плохую»
+        # по ITEM_PRIORITY, остальные игнорируются. Клевер проверяется один
+        # раз для выбранной ловушки.
+        traps = [it for it in found_items if it in ("stone", "animal",
+                                                    "plant")]
         trapped = False
         saved = 0
-        for it in found_items:
-            if it not in ("stone", "animal", "plant"):
-                continue
+        if traps:
+            worst = min(traps, key=lambda it: ITEM_PRIORITY.get(it, 99))
             if (self.clover_time > 0
                     and random.random() < CLOVER_SAVE_CHANCE):
-                saved += 1
-                continue
-            trapped = True
-            self.trigger_item(it)
+                saved = 1
+            else:
+                trapped = True
+                self.trigger_item(worst)
         if saved:
-            self.add_message("Клевер спас от ловушки x%d!" % saved,
-                             GREEN_MSG)
+            self.add_message("Клевер спас от ловушки!", GREEN_MSG)
         # лекарства достают, только если ни одна ловушка не сработала
         meds = [it for it in found_items if it in ("bandage", "antidote")]
         if meds and trapped:

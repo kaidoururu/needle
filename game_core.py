@@ -27,8 +27,25 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         pygame.init()
         pygame.font.init()
         pygame.display.set_caption("Игла в стоге сена")
-        self.screen = pygame.display.set_mode((720, 1280),
-                                              pygame.RESIZABLE)
+        # пункт 11: рисуем в виртуальный холст CANVAS_W x CANVAS_H,
+        # а на дисплей выводим уже растянутую копию — интерфейс одинаково
+        # крупный и на ПК, и на Android. На Android окно открывается
+        # на весь экран.
+        if ON_ANDROID:
+            self.real_screen = pygame.display.set_mode((0, 0),
+                                                       pygame.FULLSCREEN)
+        else:
+            self.real_screen = pygame.display.set_mode(
+                (CANVAS_W, CANVAS_H), pygame.RESIZABLE)
+        self.canvas = pygame.Surface((CANVAS_W, CANVAS_H)).convert()
+        # вся отрисовка (self.screen во всех примесях) идёт в холст
+        self.screen = self.canvas
+        self.view_scale = 1.0
+        self.view_x = 0
+        self.view_y = 0
+        self.view_w = CANVAS_W
+        self.view_h = CANVAS_H
+        self.update_view()
         self.clock = pygame.time.Clock()
 
         self.font_big = None
@@ -114,6 +131,7 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         self.tut_shop_done = False
         self.mercy_used = False      # милость судьбы: раз за уровень
         self.tutorial = None
+        self.pending_tutorial = {}   # очередь отложенных уроков (п. 10)
         self.idle_time = 0.0
         self.idle_hint = None
 
@@ -125,13 +143,56 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         self.shop_buttons = {}
         self.win_buttons = {}
         self.death_buttons = {}
+        # сохранение грузится ДО постройки поля (пункт 9): уровень,
+        # уроки и улучшения берутся от hay_save.json, и стог сразу
+        # собирается от сохранённого уровня, а не от первого
+        self.load_game()
         self.build_field()
         self.build_ui()
-        self.load_game()          # прогресс из hay_save.json
         self.stamina = self.max_stamina
         self.health = self.max_health
 
 
+
+    # ---------- вывод на экран (пункт 11) ----------
+
+    def update_view(self):
+        """Пересчитать масштаб и положение холста под размер дисплея:
+        холст вписывается целиком, по центру, без искажения пропорций."""
+        real = pygame.display.get_surface()
+        if real is None:
+            return
+        rw, rh = real.get_size()
+        scale = min(rw / CANVAS_W, rh / CANVAS_H)
+        self.view_scale = scale
+        self.view_w = max(1, int(CANVAS_W * scale))
+        self.view_h = max(1, int(CANVAS_H * scale))
+        self.view_x = (rw - self.view_w) // 2
+        self.view_y = (rh - self.view_h) // 2
+
+    def map_to_canvas(self, pos):
+        """Координаты экрана -> координаты виртуального холста."""
+        x = (pos[0] - self.view_x) / self.view_scale
+        y = (pos[1] - self.view_y) / self.view_scale
+        return (int(x), int(y))
+
+    def mouse_pos(self):
+        """Позиция мыши или тапа в координатах холста."""
+        return self.map_to_canvas(pygame.mouse.get_pos())
+
+    def present(self):
+        """Вывести холст на дисплей: масштабирование и flip."""
+        real = pygame.display.get_surface()
+        if real is None:
+            return
+        real.fill((0, 0, 0))
+        if (self.view_w, self.view_h) != self.canvas.get_size():
+            scaled = pygame.transform.smoothscale(
+                self.canvas, (self.view_w, self.view_h))
+            real.blit(scaled, (self.view_x, self.view_y))
+        else:
+            real.blit(self.canvas, (0, 0))
+        pygame.display.flip()
 
     def make_fonts(self):
         try:
@@ -198,6 +259,7 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         self.tut_shop_done = False
         self.mercy_used = False
         self.tutorial = None
+        self.pending_tutorial = {}
         self.idle_time = 0.0
         self.idle_hint = None
         self.build_field()
