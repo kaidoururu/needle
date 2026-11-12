@@ -128,6 +128,23 @@ class UIMixin:
 
 
     def draw_coin(self, surf, cx, cy, d, alpha=None):
+        cache = getattr(self, "_coin_cache", None)
+        if cache is None:
+            cache = self._coin_cache = {}
+        img = cache.get(d)
+        if img is None:
+            img = pygame.Surface((d, d), pygame.SRCALPHA)
+            self._build_coin(img, d // 2, d // 2, d, None)
+            cache[d] = img
+        px, py = int(cx - d // 2), int(cy - d // 2)
+        if alpha is None:
+            surf.blit(img, (px, py))
+        else:
+            tmp = img.copy()
+            tmp.set_alpha(alpha)
+            surf.blit(tmp, (px, py))
+
+    def _build_coin(self, surf, cx, cy, d, alpha=None):
         r = d // 2
         cn = pygame.Surface((d, d), pygame.SRCALPHA)
         pygame.draw.circle(cn, ICON_COIN_DARK, (r, r), r)
@@ -318,13 +335,18 @@ class UIMixin:
         for k, (name, frac) in enumerate(icons):
             cx = pb.left - 34 - k * (d + 12)
             cy = pb.centery
-            ring = pygame.Surface((d + 16, d + 16), pygame.SRCALPHA)
-            pygame.draw.circle(ring, (25, 18, 10, 205),
-                               ((d + 16) // 2, (d + 16) // 2),
-                               (d + 16) // 2)
-            pygame.draw.circle(ring, (255, 200, 60, 235),
-                               ((d + 16) // 2, (d + 16) // 2),
-                               (d + 16) // 2, 3)
+            ring = getattr(self, "_ring_cache", {}).get(d)
+            if ring is None:
+                ring = pygame.Surface((d + 16, d + 16), pygame.SRCALPHA)
+                pygame.draw.circle(ring, (25, 18, 10, 205),
+                                   ((d + 16) // 2, (d + 16) // 2),
+                                   (d + 16) // 2)
+                pygame.draw.circle(ring, (255, 200, 60, 235),
+                                   ((d + 16) // 2, (d + 16) // 2),
+                                   (d + 16) // 2, 3)
+                if not hasattr(self, "_ring_cache"):
+                    self._ring_cache = {}
+                self._ring_cache[d] = ring
             self.screen.blit(ring, (int(cx - (d + 16) / 2),
                                     int(cy - (d + 16) / 2)))
             icon = self.icon_cache.get((name, d))

@@ -110,6 +110,13 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         self.icon_cache = {}
         self.field_surf = None
         self.field_dirty = True
+        self._dr_cache = {}
+        self._compass_ov = None
+        self._fx_cache = {}
+        self._ring_cache = {}
+        self._coin_cache = {}
+        self._notice_panel = None
+        self._scaled = None
 
         # состояния: меню, игра, пауза
         self.state = "menu"
@@ -174,12 +181,16 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         scale, off_x, off_y = self.canvas_transform()
         size = (max(1, int(CANVAS_W * scale)),
                 max(1, int(CANVAS_H * scale)))
-        out = pygame.transform.smoothscale(self.screen, size)
+        if size == self.screen.get_size():
+            out = self.screen
+        else:
+            out = getattr(self, "_scaled", None)
+            if out is None or out.get_size() != size:
+                out = pygame.Surface(size).convert()
+                self._scaled = out
+            pygame.transform.smoothscale(self.screen, size, out)
         self.display.fill((0, 0, 0))
         self.display.blit(out, (int(off_x), int(off_y)))
-
-
-
     def make_fonts(self):
         try:
             self.font_big = pygame.font.SysFont("arial", 52, bold=True)

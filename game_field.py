@@ -205,44 +205,7 @@ class FieldMixin:
         surf.fill(DIRT)
         icon_d = max(8, int(min(self.cw, self.ch) * 0.55))
         for i, c in enumerate(self.cells):
-            x = (i % self.cols) * self.cw
-            y = (i // self.cols) * self.ch
-            if not c["dug"]:
-                s = c["shade"]
-                color = (int(184 + 56 * s), int(133 + 72 * s),
-                         int(31 + 20 * s))
-                pygame.draw.rect(surf, color,
-                                 (x, y, self.cw - 1, self.ch - 1))
-                for sx1, sy1, sx2, sy2 in c["strokes"]:
-                    pygame.draw.line(surf, (235, 191, 64),
-                                     (x + sx1, y + sy1),
-                                     (x + sx2, y + sy2), 2)
-            else:
-                pygame.draw.rect(surf, (102, 77, 41),
-                                 (x, y, self.cw - 1, self.ch - 1))
-                if c["item"]:
-                    pygame.draw.circle(
-                        surf, (70, 52, 28),
-                        (int(x + self.cw / 2), int(y + self.ch / 2)),
-                        icon_d // 2 + 2)
-                    cx, cy = x + self.cw / 2, y + self.ch / 2
-                    if c["item"] == "stone":
-                        self.draw_stone(surf, cx, cy, icon_d)
-                    elif c["item"] == "plant":
-                        self.draw_plant(surf, cx, cy, icon_d)
-                    elif c["item"] == "animal":
-                        self.draw_animal(surf, cx, cy, icon_d)
-                    elif c["item"] == "bandage":
-                        self.draw_bandage(surf, cx, cy, icon_d)
-                    elif c["item"] == "antidote":
-                        self.draw_antidote(surf, cx, cy, icon_d)
-                    elif c["item"] == "compass":
-                        self.draw_compass(surf, cx, cy, icon_d)
-                    elif c["item"] == "energy":
-                        self.draw_energy(surf, cx, cy, icon_d)
-                    elif c["item"] == "clover":
-                        self.draw_clover(surf, cx, cy, icon_d)
-
+            self._paint_cell(surf, i, c, icon_d)
         if self.won:
             i = self.needle_idx
             nx = (i % self.cols) * self.cw + self.cw / 2
@@ -253,12 +216,54 @@ class FieldMixin:
                              (nx + 4, ny + self.ch * 0.4), 4)
             pygame.draw.circle(surf, needle_color,
                                (int(nx - 4), int(ny + self.ch * 0.4)), 4)
-
         self.field_surf = surf
         self.field_dirty = False
+    def _paint_cell(self, surf, i, c, icon_d):
+        x = (i % self.cols) * self.cw
+        y = (i // self.cols) * self.ch
+        if not c["dug"]:
+            s = c["shade"]
+            color = (int(184 + 56 * s), int(133 + 72 * s),
+                     int(31 + 20 * s))
+            pygame.draw.rect(surf, color,
+                             (x, y, self.cw - 1, self.ch - 1))
+            for sx1, sy1, sx2, sy2 in c["strokes"]:
+                pygame.draw.line(surf, (235, 191, 64),
+                                 (x + sx1, y + sy1),
+                                 (x + sx2, y + sy2), 2)
+        else:
+            pygame.draw.rect(surf, (102, 77, 41),
+                             (x, y, self.cw - 1, self.ch - 1))
+            if c["item"]:
+                pygame.draw.circle(
+                    surf, (70, 52, 28),
+                    (int(x + self.cw / 2), int(y + self.ch / 2)),
+                    icon_d // 2 + 2)
+                cx, cy = x + self.cw / 2, y + self.ch / 2
+                if c["item"] == "stone":
+                    self.draw_stone(surf, cx, cy, icon_d)
+                elif c["item"] == "plant":
+                    self.draw_plant(surf, cx, cy, icon_d)
+                elif c["item"] == "animal":
+                    self.draw_animal(surf, cx, cy, icon_d)
+                elif c["item"] == "bandage":
+                    self.draw_bandage(surf, cx, cy, icon_d)
+                elif c["item"] == "antidote":
+                    self.draw_antidote(surf, cx, cy, icon_d)
+                elif c["item"] == "compass":
+                    self.draw_compass(surf, cx, cy, icon_d)
+                elif c["item"] == "energy":
+                    self.draw_energy(surf, cx, cy, icon_d)
+                elif c["item"] == "clover":
+                    self.draw_clover(surf, cx, cy, icon_d)
 
-
-
+    def repaint_cells(self, idxs):
+        if self.won or self.field_surf is None:
+            self.field_dirty = True
+            return
+        icon_d = max(8, int(min(self.cw, self.ch) * 0.55))
+        for i in idxs:
+            self._paint_cell(self.field_surf, i, self.cells[i], icon_d)
     def draw_field(self):
         if self.field_surf is None or self.field_dirty:
             self.make_field_surface()
@@ -284,9 +289,13 @@ class FieldMixin:
         x0 = self.field_rect.x + (0 if west else qw)
         y0 = self.field_rect.y + (0 if north else qh)
         p = 0.55 + 0.45 * math.sin(self.time * 5.0)
-        ov = pygame.Surface((max(1, int(qw)), max(1, int(qh))),
-                            pygame.SRCALPHA)
-        ov.fill((255, 200, 60, int(60 * p)))
+        size = (max(1, int(qw)), max(1, int(qh)))
+        ov = getattr(self, "_compass_ov", None)
+        if ov is None or ov.get_size() != size:
+            ov = pygame.Surface(size)
+            ov.fill((255, 200, 60))
+            self._compass_ov = ov
+        ov.set_alpha(int(60 * p))
         self.screen.blit(ov, (int(x0), int(y0)))
         pygame.draw.rect(self.screen, GOLD,
                          (int(x0), int(y0), int(qw), int(qh)),

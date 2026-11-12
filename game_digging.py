@@ -227,7 +227,7 @@ class DiggingMixin:
                 self.save_game()
         if dug_now:
             self.digs += 1
-            self.field_dirty = True
+            self.repaint_cells(dug_now)
             self.spawn_straws(dug_now)
             safe = self.resolve_items(dug_now)
             if safe:

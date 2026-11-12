@@ -44,11 +44,15 @@ class EffectsMixin:
         px = (w - pw) // 2
         py = self.field_rect.top + (self.field_rect.h - ph) // 2 - 40
 
-        panel = pygame.Surface((pw, ph), pygame.SRCALPHA)
-        pygame.draw.rect(panel, (25, 18, 10, int(235 * alpha / 255)),
-                         (0, 0, pw, ph), border_radius=18)
-        pygame.draw.rect(panel, (255, 210, 80, int(200 * alpha / 255)),
-                         (0, 0, pw, ph), 4, border_radius=18)
+        panel = getattr(self, "_notice_panel", None)
+        if panel is None:
+            panel = pygame.Surface((pw, ph), pygame.SRCALPHA)
+            pygame.draw.rect(panel, (25, 18, 10, 235),
+                             (0, 0, pw, ph), border_radius=18)
+            pygame.draw.rect(panel, (255, 210, 80, 200),
+                             (0, 0, pw, ph), 4, border_radius=18)
+            self._notice_panel = panel
+        panel.set_alpha(alpha)
         self.screen.blit(panel, (px, py))
 
         icon_cx = px + pw // 2
@@ -108,25 +112,33 @@ class EffectsMixin:
     # ---------- экранные вспышки ----------
     def draw_screen_effects(self):
         w, h = self.screen.get_size()
+        cache = getattr(self, "_fx_cache", None)
+        if cache is None:
+            cache = self._fx_cache = {}
+        def ov_for(rgb):
+            key = (w, h, rgb)
+            ov = cache.get(key)
+            if ov is None:
+                ov = pygame.Surface((w, h))
+                ov.fill(rgb)
+                cache[key] = ov
+            return ov
         if self.bite_flash > 0:
             alpha = int(BITE_FLASH_ALPHA * self.bite_flash)
             if alpha > 0:
-                ov = pygame.Surface((w, h), pygame.SRCALPHA)
-                ov.fill(BITE_RED + (alpha,))
+                ov = ov_for(BITE_RED)
+                ov.set_alpha(alpha)
                 self.screen.blit(ov, (0, 0))
         if self.poison_flash > 0:
             alpha = int(POISON_FLASH_ALPHA * self.poison_flash)
             if alpha > 0:
-                ov = pygame.Surface((w, h), pygame.SRCALPHA)
-                ov.fill(POISON_FLASH + (alpha,))
+                ov = ov_for(POISON_FLASH)
+                ov.set_alpha(alpha)
                 self.screen.blit(ov, (0, 0))
         elif self.poison_time > 0:
-            ov = pygame.Surface((w, h), pygame.SRCALPHA)
-            ov.fill(POISON_FLASH + (POISON_TINT_ALPHA,))
+            ov = ov_for(POISON_FLASH)
+            ov.set_alpha(POISON_TINT_ALPHA)
             self.screen.blit(ov, (0, 0))
-
-
-
     def update_flashes(self, dt):
         if self.bite_flash > 0:
             self.bite_flash = max(0.0, self.bite_flash - FLASH_FADE * dt)

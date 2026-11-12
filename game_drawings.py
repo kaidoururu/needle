@@ -13,7 +13,28 @@ class DrawingsMixin:
 
 
     # ---------- рисунки находок ----------
+    def _cached_draw(self, name, surf, cx, cy, d, alpha, builder):
+        cache = getattr(self, "_dr_cache", None)
+        if cache is None:
+            cache = self._dr_cache = {}
+        key = (name, d)
+        img = cache.get(key)
+        if img is None:
+            img = pygame.Surface((d, d), pygame.SRCALPHA)
+            builder(img, d // 2, d // 2, d, None)
+            cache[key] = img
+        px, py = int(cx - d // 2), int(cy - d // 2)
+        if alpha is None:
+            surf.blit(img, (px, py))
+        else:
+            tmp = img.copy()
+            tmp.set_alpha(alpha)
+            surf.blit(tmp, (px, py))
+
     def draw_stone(self, surf, cx, cy, d, alpha=None):
+        return self._cached_draw("draw_stone", surf, cx, cy, d, alpha, self._build_draw_stone)
+
+    def _build_draw_stone(self, surf, cx, cy, d, alpha=None):
         r = d // 2
         rock = pygame.Surface((d, d), pygame.SRCALPHA)
         pygame.draw.circle(rock, (60, 60, 66), (r, r + r // 6), r)
@@ -31,6 +52,9 @@ class DrawingsMixin:
 
 
     def draw_plant(self, surf, cx, cy, d, alpha=None):
+        return self._cached_draw("draw_plant", surf, cx, cy, d, alpha, self._build_draw_plant)
+
+    def _build_draw_plant(self, surf, cx, cy, d, alpha=None):
         r = d // 2
         pl = pygame.Surface((d, d), pygame.SRCALPHA)
         cxx, cyy = int(r), int(r)
@@ -65,6 +89,9 @@ class DrawingsMixin:
 
 
     def draw_animal(self, surf, cx, cy, d, alpha=None):
+        return self._cached_draw("draw_animal", surf, cx, cy, d, alpha, self._build_draw_animal)
+
+    def _build_draw_animal(self, surf, cx, cy, d, alpha=None):
         r = d // 2
         an = pygame.Surface((d, d), pygame.SRCALPHA)
         cxx, cyy = int(r), int(r)
@@ -87,6 +114,9 @@ class DrawingsMixin:
 
 
     def draw_bandage(self, surf, cx, cy, d, alpha=None):
+        return self._cached_draw("draw_bandage", surf, cx, cy, d, alpha, self._build_draw_bandage)
+
+    def _build_draw_bandage(self, surf, cx, cy, d, alpha=None):
         """Рулон бинта: белый цилиндр, торец со спиралью,
         свисающий хвостик и красный крест."""
         r = d // 2
@@ -143,6 +173,9 @@ class DrawingsMixin:
 
 
     def draw_antidote(self, surf, cx, cy, d, alpha=None):
+        return self._cached_draw("draw_antidote", surf, cx, cy, d, alpha, self._build_draw_antidote)
+
+    def _build_draw_antidote(self, surf, cx, cy, d, alpha=None):
         """Флакон противоядия: стеклянная колба с зелёной жидкостью,
         пробка и белая этикетка с крестом."""
         r = d // 2
@@ -191,6 +224,9 @@ class DrawingsMixin:
     # ---------- пучок сена для плашки HUD ----------
 
     def draw_hay_bunch(self, surf, cx, cy, d, alpha=None):
+        return self._cached_draw("draw_hay_bunch", surf, cx, cy, d, alpha, self._build_draw_hay_bunch)
+
+    def _build_draw_hay_bunch(self, surf, cx, cy, d, alpha=None):
         """Пучок сена: охапка соломинок, перевязанная жгутом."""
         r = d // 2
         hb = pygame.Surface((d, d), pygame.SRCALPHA)
@@ -365,6 +401,9 @@ class DrawingsMixin:
 
 
     def draw_compass(self, surf, cx, cy, d, alpha=None):
+        return self._cached_draw("draw_compass", surf, cx, cy, d, alpha, self._build_draw_compass)
+
+    def _build_draw_compass(self, surf, cx, cy, d, alpha=None):
         r = d // 2
         cp = pygame.Surface((d, d), pygame.SRCALPHA)
         pygame.draw.circle(cp, (70, 60, 40), (r, r), r)
@@ -384,6 +423,9 @@ class DrawingsMixin:
 
 
     def draw_energy(self, surf, cx, cy, d, alpha=None):
+        return self._cached_draw("draw_energy", surf, cx, cy, d, alpha, self._build_draw_energy)
+
+    def _build_draw_energy(self, surf, cx, cy, d, alpha=None):
         """Энергетик: банка с молнией. Во время действия рывки не
         тратят силу (ENERGY_TIME секунд)."""
         r = d // 2
@@ -419,6 +461,9 @@ class DrawingsMixin:
 
 
     def draw_clover(self, surf, cx, cy, d, alpha=None):
+        return self._cached_draw("draw_clover", surf, cx, cy, d, alpha, self._build_draw_clover)
+
+    def _build_draw_clover(self, surf, cx, cy, d, alpha=None):
         r = d // 2
         cl = pygame.Surface((d, d), pygame.SRCALPHA)
         lr = int(r * 0.42)
