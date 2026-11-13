@@ -34,10 +34,21 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         # пункт 1: дисплей открывается один раз на весь экран,
         # без изменяемого окна — целевая платформа только Android
         self.display = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
-        # масштаб интерфейса считается один раз, до шрифтов и поля
-        set_scale(*self.display.get_size())
-        # холста больше нет: рисуем сразу в разрешение экрана
-        self.screen = self.display
+        # безопасная зона Android: системные панели перекрывают верх
+        # и низ физического экрана. Одно место на весь проект: все
+        # 36 читателей размера экрана автоматически работают с видимой
+        # областью, координаты касаний совпадают один в один.
+        if ON_ANDROID:
+            vw = self.display.get_width()
+            vh = self.display.get_height() - SAFE_TOP - SAFE_BOTTOM
+            # масштаб интерфейса считается один раз, до шрифтов и поля
+            set_scale(vw, vh)
+            # холста больше нет: рисуем сразу в видимую область
+            self.screen = self.display.subsurface(
+                (0, SAFE_TOP, vw, vh))
+        else:
+            set_scale(*self.display.get_size())
+            self.screen = self.display
         self.clock = pygame.time.Clock()
 
         self.font_big = None

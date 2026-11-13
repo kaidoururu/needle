@@ -89,21 +89,28 @@ class EffectsMixin:
 
     def draw_messages(self):
         """Сообщения на тёмной плашке — читаются на любом фоне стога."""
-        y = self.field_rect.top + 14
+        y = self.field_rect.top + S(14)
         for m in self.messages:
             alpha = max(0, min(255, int(255 * m["life"] / 1.2)))
-            surf = self.font_mid.render(m["text"], True, m["color"])
-            pad = 10
-            pill_w = surf.get_width() + pad * 2
-            pill_h = surf.get_height() + pad * 2
+            # длинное сообщение переносится по ширине поля
+            lines = wrap_text(m["text"], self.font_mid,
+                              self.field_rect.width - S(40))
+            pad = S(10)
+            lh = self.font_mid.get_linesize()
+            pill_w = max(self.font_mid.size(ln)[0] for ln in lines) + pad * 2
+            pill_h = lh * len(lines) + pad * 2
             pill = pygame.Surface((pill_w, pill_h), pygame.SRCALPHA)
             pygame.draw.rect(pill, MSG_BG + (int(215 * alpha / 255),),
                              (0, 0, pill_w, pill_h), border_radius=10)
             px = self.field_rect.centerx - pill_w // 2
             self.screen.blit(pill, (px, y))
-            surf.set_alpha(alpha)
-            self.screen.blit(surf, (px + pad, y + pad))
-            y += pill_h + 4
+            ty = y + pad
+            for ln in lines:
+                surf = self.font_mid.render(ln, True, m["color"])
+                surf.set_alpha(alpha)
+                self.screen.blit(surf, (px + pad, ty))
+                ty += lh
+            y += pill_h + S(4)
 
     # ---------- экранные вспышки ----------
 

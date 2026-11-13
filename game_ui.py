@@ -466,17 +466,25 @@ class UIMixin:
         pygame.draw.rect(self.screen, GOLD,
                          rect.inflate(grow * 2, grow * 2), S(4),
                          border_radius=12)
-        # стрелка и плашка с текстом урока
-        surf = self.font_mid.render(text, True, GOLD)
+        # стрелка и плашка с текстом урока: длинный текст переносится
+        # по ширине экрана (w - S(40)), плашка растёт в высоту
+        lines = wrap_text(text, self.font_mid, w - S(40))
+        lh = self.font_mid.get_linesize()
         y = self.field_rect.top + S(110)
-        pill = pygame.Surface((surf.get_width() + S(26),
-                               surf.get_height() + S(16)), pygame.SRCALPHA)
+        pill_w = max(self.font_mid.size(ln)[0] for ln in lines) + S(26)
+        pill_h = lh * len(lines) + S(16)
+        pill = pygame.Surface((pill_w, pill_h), pygame.SRCALPHA)
         pygame.draw.rect(pill, MSG_BG + (230,), pill.get_rect(),
                          border_radius=12)
         pygame.draw.rect(pill, GOLD + (230,), pill.get_rect(), S(2),
                          border_radius=12)
         self.screen.blit(pill, pill.get_rect(center=(w // 2, y)))
-        self.screen.blit(surf, surf.get_rect(center=(w // 2, y)))
+        ty = y - pill_h // 2 + S(8)
+        for ln in lines:
+            surf = self.font_mid.render(ln, True, GOLD)
+            self.screen.blit(surf,
+                             surf.get_rect(center=(w // 2, ty + lh // 2)))
+            ty += lh
         arrow_y = rect.top - S(34) - grow
         pygame.draw.polygon(self.screen, GOLD,
                             [(rect.centerx, rect.top - S(10)),
@@ -490,16 +498,23 @@ class UIMixin:
         if not hint or self.won or self.dead:
             return
         w = self.screen.get_width()
-        surf = self.font_mid.render(hint["text"], True, GOLD)
+        lines = wrap_text(hint["text"], self.font_mid, w - S(40))
+        lh = self.font_mid.get_linesize()
         y = self.field_rect.top + S(60)
-        pill = pygame.Surface((surf.get_width() + S(26),
-                               surf.get_height() + S(16)), pygame.SRCALPHA)
+        pill_w = max(self.font_mid.size(ln)[0] for ln in lines) + S(26)
+        pill_h = lh * len(lines) + S(16)
+        pill = pygame.Surface((pill_w, pill_h), pygame.SRCALPHA)
         pygame.draw.rect(pill, MSG_BG + (230,), pill.get_rect(),
                          border_radius=12)
         pygame.draw.rect(pill, GOLD + (230,), pill.get_rect(), S(2),
                          border_radius=12)
         self.screen.blit(pill, pill.get_rect(center=(w // 2, y)))
-        self.screen.blit(surf, surf.get_rect(center=(w // 2, y)))
+        ty = y - pill_h // 2 + S(8)
+        for ln in lines:
+            surf = self.font_mid.render(ln, True, GOLD)
+            self.screen.blit(surf,
+                             surf.get_rect(center=(w // 2, ty + lh // 2)))
+            ty += lh
         p = 0.5 + 0.5 * math.sin(self.time * 5.0)
         target = hint.get("target")
         if target is not None:
