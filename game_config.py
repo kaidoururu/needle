@@ -26,8 +26,13 @@
 # сохранение hay_save.json могло молча не работать) и log_trace —
 # метки шагов в crash_log.txt: последняя метка показывает, где игра
 # умерла даже при жёстком падении ниже Python.
+# Горячее исправление r21: смещение тапов вернулось — фактическое
+# соответствие координат события и рисования уточняется самой
+# игрой (автокалибровка по попаданиям в кнопки, tap_calib.json),
+# сырые тапы пишутся в crash_log.txt для точной подстройки.
 
 import datetime
+import json
 import os
 import sys
 
@@ -136,9 +141,77 @@ def touch_pos(pos):
     приходят в координатах физического экрана — на Android вычитаем
     SAFE_TOP из вертикали. На ПК координаты совпадают один в один.
     """
+    off = TAP_OFFSET if TAP_OFFSET is not None else SAFE_TOP
     if ON_ANDROID:
-        return (pos[0], pos[1] - SAFE_TOP)
+        return (pos[0], int(pos[1] - off))
     return pos
+
+# --- автокалибровка тапов (r21) ---
+# Фактическое соответствие между координатами события и рисования на
+# телефоне заранее неизвестно (SDL может отдавать координаты окна,
+# а не полного экрана), поэтому игра уточняет смещение сама: каждое
+# попадание в кнопку задаёт интервал возможных значений, интервалы
+# пересекаются, середина сохраняется в tap_calib.json и переживает
+# перезапуск. Несколько тапов по кнопкам — и попадание точное.
+TAP_LO = 0.0
+TAP_HI = 300.0
+TAP_OFFSET = None  # вычитаемая величина; пока не измерена — SAFE_TOP
+_TAP_LOGGED = 0
+
+
+def calib_load():
+    """Восстановить калибровку тапов из tap_calib.json (если есть)."""
+    global TAP_OFFSET, TAP_LO, TAP_HI
+    if not ON_ANDROID:
+        return
+    try:
+        path = os.path.join(data_dir(), "tap_calib.json")
+        with open(path, "r", encoding="utf-8") as f:
+            d = json.load(f)
+        TAP_LO, TAP_HI = float(d["lo"]), float(d["hi"])
+        if TAP_HI - TAP_LO <= 300.0:
+            TAP_OFFSET = (TAP_LO + TAP_HI) / 2.0
+            log_trace("калибровка тапов загружена: "
+                      "{:.1f}".format(TAP_OFFSET))
+    except Exception:
+        pass
+
+
+def calib_hit(rect, raw_y):
+    """Уточнить смещение тапов по факту попадания в кнопку.
+
+    Попадание значит, что raw_y - TAP_OFFSET лежит внутри rect, то есть
+    TAP_OFFSET ∈ [raw_y - rect.bottom, raw_y - rect.top]. Интервал
+    сужается с каждым попаданием, середина становится оценкой.
+    """
+    global TAP_OFFSET, TAP_LO, TAP_HI
+    if not ON_ANDROID:
+        return
+    lo = max(TAP_LO, raw_y - rect.bottom)
+    hi = min(TAP_HI, raw_y - rect.top)
+    if lo > hi:
+        return  # противоречивый тап — игнорируем
+    TAP_LO, TAP_HI = lo, hi
+    est = (lo + hi) / 2.0
+    if TAP_OFFSET is None or abs(est - TAP_OFFSET) >= 1.0:
+        TAP_OFFSET = est
+        log_trace("калибровка тапов: [{:.1f}; {:.1f}], сдвиг {:.1f}"
+                  .format(lo, hi, est))
+        try:
+            with open(os.path.join(data_dir(), "tap_calib.json"),
+                      "w", encoding="utf-8") as f:
+                json.dump({"lo": lo, "hi": hi}, f)
+        except Exception:
+            pass
+
+
+def log_tap(raw_y):
+    """Диагностика первых тапов: сырая вертикаль события в лог."""
+    global _TAP_LOGGED
+    if _TAP_LOGGED >= 40:
+        return
+    _TAP_LOGGED += 1
+    log_trace("тап {}: y={}".format(_TAP_LOGGED, raw_y))
 
 
 STAMINA_BASE = 20

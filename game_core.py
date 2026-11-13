@@ -157,6 +157,11 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         # уроки и улучшения берутся от hay_save.json, и стог сразу
         # собирается от сохранённого уровня, а не от первого
         self.load_game()
+        calib_load()
+        log_trace("геометрия: экран {}, видимая {}, SAFE_TOP={}, SAFE_BOTTOM={}"
+                  .format(self.display.get_size(),
+                          self.screen.get_size(),
+                          SAFE_TOP, SAFE_BOTTOM))
         self.build_field()
         self.build_ui()
         self.stamina = self.max_stamina

@@ -13,9 +13,11 @@ class LoopMixin:
 
 
     # ---------- меню и пауза ----------
-    def handle_menu_click(self, pos):
+    def handle_menu_click(self, pos, raw_y=None):
         for name, rect in self.menu_buttons.items():
             if rect.collidepoint(pos):
+                if ON_ANDROID and raw_y is not None:
+                    calib_hit(rect, raw_y)
                 if name == "continue":
                     log_trace("меню: продолжить")
                     self.intro_open = True
@@ -46,9 +48,11 @@ class LoopMixin:
 
 
 
-    def handle_pause_click(self, pos):
+    def handle_pause_click(self, pos, raw_y=None):
         for name, rect in self.pause_buttons.items():
             if rect.collidepoint(pos):
+                if ON_ANDROID and raw_y is not None:
+                    calib_hit(rect, raw_y)
                 if name == "continue":
                     self.state = "game"
                 elif name == "restart":
@@ -338,21 +342,25 @@ class LoopMixin:
                     pos = getattr(event, "pos", None)
                     if pos is None:
                         continue
+                    raw_y = pos[1]
+                    log_tap(raw_y)
                     # безопасная зона: тап приходит в координатах полного
                     # экрана, рисование идёт в subsurface со смещением
-                    # SAFE_TOP — переводим в координаты видимой области
+                    # SAFE_TOP — переводим в координаты видимой области;
+                    # фактическое смещение уточняется автокалибровкой
                     pos = touch_pos(pos)
                     if self.state == "menu":
-                        if self.handle_menu_click(pos) == "quit":
+                        if self.handle_menu_click(pos, raw_y) == "quit":
                             running = False
                     elif self.state == "pause":
-                        self.handle_pause_click(pos)
+                        self.handle_pause_click(pos, raw_y)
                     elif self.intro_open:
                         self.handle_click(pos)
                     else:
                         if (not self.won and not self.dead
                                 and not self.tutorial
                                 and self.help_button.collidepoint(pos)):
+                            calib_hit(self.help_button, raw_y)
                             if self.help_target > 0.5:
                                 self.close_help()
                             else:
@@ -360,6 +368,7 @@ class LoopMixin:
                         elif (not self.won and not self.dead
                                 and not self.tutorial
                                 and self.pause_button.collidepoint(pos)):
+                            calib_hit(self.pause_button, raw_y)
                             self.open_pause()
                         else:
                             self.handle_click(pos)
