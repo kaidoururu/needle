@@ -335,8 +335,10 @@ class LoopMixin:
                     pos = getattr(event, "pos", None)
                     if pos is None:
                         continue
-                    # пункт 1: тап приходит сразу в координатах экрана —
-                    # промежуточного холста больше нет
+                    # безопасная зона: тап приходит в координатах полного
+                    # экрана, рисование идёт в subsurface со смещением
+                    # SAFE_TOP — переводим в координаты видимой области
+                    pos = touch_pos(pos)
                     if self.state == "menu":
                         if self.handle_menu_click(pos) == "quit":
                             running = False

@@ -12,6 +12,10 @@
 # 5) безопасная зона: на Android self.screen — subsurface
 #    внутри SAFE_TOP..h-SAFE_BOTTOM; плашки переносятся
 #    wrap_text по ширине экрана.
+# Горячее исправление r19: тапы приходят в координатах полного
+# экрана, рисование — в subsurface со смещением SAFE_TOP; добавлен
+# переводчик touch_pos в конфиге, применён во всех 5 местах чтения
+# координат (цикл + 4 ховера).
 # Следующий пункт — 5: развилка (проверка после запуска).
 
 import datetime
@@ -110,6 +114,18 @@ def wrap_text(text, font, max_w):
         if cur:
             lines.append(cur)
     return lines or [""]
+
+
+def touch_pos(pos):
+    """Перевести координаты события из полного экрана в видимую область.
+
+    Рисование идёт в subsurface со смещением SAFE_TOP, а тапы и мышь
+    приходят в координатах физического экрана — на Android вычитаем
+    SAFE_TOP из вертикали. На ПК координаты совпадают один в один.
+    """
+    if ON_ANDROID:
+        return (pos[0], pos[1] - SAFE_TOP)
+    return pos
 
 
 STAMINA_BASE = 20
