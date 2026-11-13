@@ -183,6 +183,8 @@ class FieldMixin:
         self.poison_time = 0.0
         self.bite_flash = 0.0
         self.poison_flash = 0.0
+        self.energy_time = 0.0  # энергетик не переносится на новый уровень
+        self.clover_time = 0.0  # клевер не переносится на новый уровень
         self.build_field()
         self.mercy_used = False   # милость судьбы доступна снова
         self.money += reward
@@ -194,6 +196,8 @@ class FieldMixin:
         else:
             self.add_message("Уровень %d! Клеток больше, ловушки злее"
                              % self.level, BLUE_MSG)
+        self.add_message("Энергетик и клевер не переносятся "
+                         "на новый уровень", BLUE_MSG)
 
     # ---------- аптека ----------
 

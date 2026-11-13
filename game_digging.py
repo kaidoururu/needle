@@ -34,7 +34,6 @@ class DiggingMixin:
                 self.show_notice(item)
                 self.notice["sub"] = "Лопата и так минимальная"
         elif item == "plant":
-            old = self.health
             self.poison_time = self.poison_duration()
             self.poison_flash = 1.0
             if (not getattr(self, "tut_antidote_done", False)
@@ -43,12 +42,8 @@ class DiggingMixin:
                 # секунду видит плашку «Отравление!», потом подсветку
                 self.pending_tutorial["antidote"] = self.time + TUT_DELAY
             self.show_notice(item)
-            self.notice["sub"] = ("Отравление! Здоровье: %d -> %d"
-                                  % (int(round(old)),
-                                     int(round(self.health))))
-            self.add_message("Ядовитое растение! Здоровье: %d -> %d"
-                             % (int(round(old)), int(round(self.health))),
-                             PURPLE_MSG)
+            self.notice["sub"] = "Отравление! Здоровье тает"
+            self.add_message("Ядовитое растение! Здоровье тает", PURPLE_MSG)
         elif item == "animal":
             old = self.health
             dmg = self.animal_damage()

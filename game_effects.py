@@ -40,18 +40,25 @@ class EffectsMixin:
             return
         alpha = max(0, min(255, int(255 * min(1.0, n["life"] / 0.5))))
         w, h = self.screen.get_size()
-        pw, ph = S(460), S(260)
+        ph = S(260)
+        # ширина по заголовку: длинные плашки ("ЯДОВИТОЕ РАСТЕНИЕ!")
+        # не режутся, узкие остаются прежними
+        tw = self.font_big.size(n["title"])[0]
+        pw = max(S(460), tw + 2 * S(24))
         px = (w - pw) // 2
         py = self.field_rect.top + (self.field_rect.h - ph) // 2 - 40
 
-        panel = getattr(self, "_notice_panel", None)
+        cache = getattr(self, "_notice_panel_w", None)
+        if cache is None:
+            cache = self._notice_panel_w = {}
+        panel = cache.get(pw)
         if panel is None:
             panel = pygame.Surface((pw, ph), pygame.SRCALPHA)
             pygame.draw.rect(panel, (25, 18, 10, 235),
                              (0, 0, pw, ph), border_radius=18)
             pygame.draw.rect(panel, (255, 210, 80, 200),
                              (0, 0, pw, ph), 4, border_radius=18)
-            self._notice_panel = panel
+            cache[pw] = panel
         panel.set_alpha(alpha)
         self.screen.blit(panel, (px, py))
 
@@ -145,6 +152,12 @@ class EffectsMixin:
         elif self.poison_time > 0:
             ov = ov_for(POISON_FLASH)
             ov.set_alpha(POISON_TINT_ALPHA)
+            self.screen.blit(ov, (0, 0))
+        # энергетик: жёлтая тонировка поля — та же техника,
+        # отдельной веткой, чтобы обе заливки накладывались
+        if self.energy_time > 0:
+            ov = ov_for(ENERGY_TINT)
+            ov.set_alpha(ENERGY_TINT_ALPHA)
             self.screen.blit(ov, (0, 0))
     def update_flashes(self, dt):
         if self.bite_flash > 0:

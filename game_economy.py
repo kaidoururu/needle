@@ -67,13 +67,20 @@ class EconomyMixin:
     def any_upgrade_affordable(self):
         """Истинно, если на текущие монеты можно купить хотя бы одно
         улучшение из лавки (пункт 8: по этому признаку кнопка «Лавка
-        улучшений» подсвечивается пульсирующей рамкой)."""
-        return (self.money >= self.shovel_cost()
-                or self.money >= self.cap_cost()
-                or self.money >= self.regen_cost()
-                or self.money >= self.price_cost()
-                or self.money >= self.health_cost()
-                or self.money >= self.bnd_cost())
+        улучшений» подсвечивается пульсирующей рамкой).
+        Учитываются только панели, РЕАЛЬНО ВИДИМЫЕ в выдвинутой лавке:
+        у невлезающих панелей кнопка «Купить» не создаётся, и их цены
+        не должны мигать рамкой лавки (иначе кнопка мигает, а купить
+        в открытом окне нечего)."""
+        for key, cost in (("shovel", self.shovel_cost()),
+                          ("cap", self.cap_cost()),
+                          ("regen", self.regen_cost()),
+                          ("price", self.price_cost()),
+                          ("health", self.health_cost()),
+                          ("bnd", self.bnd_cost())):
+            if "buy_" + key in self.shop_buttons and self.money >= cost:
+                return True
+        return False
 
     def sell(self):
         # урок «Лавка» больше не запускается отсюда (пункт 13а):
