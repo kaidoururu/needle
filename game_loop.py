@@ -17,11 +17,14 @@ class LoopMixin:
         for name, rect in self.menu_buttons.items():
             if rect.collidepoint(pos):
                 if name == "continue":
+                    log_trace("меню: продолжить")
                     self.intro_open = True
                     self.state = "game"
                     return None
                 if name == "new":
+                    log_trace("меню: новая игра — строим поле")
                     self.start_new_game()
+                    log_trace("меню: новая игра готова")
                     self.intro_open = True
                     self.state = "game"
                     return None
@@ -382,6 +385,10 @@ class LoopMixin:
                 if self.state == "pause":
                     self.draw_pause_screen()
             pygame.display.flip()
+            if self.state != "menu" and not getattr(
+                    self, "_frame_traced", False):
+                self._frame_traced = True
+                log_trace("первый игровой кадр отрисован")
         pygame.quit()
 
 

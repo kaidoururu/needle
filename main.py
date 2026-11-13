@@ -2,14 +2,14 @@
 # Игра "Игла в стоге сена" — точка входа.
 # Запуск: python main.py
 #
-# Любой сбой не закрывает игру молча: traceback печатается в консоль
-# (на компе) и дописывается в crash_log.txt (на компе — рядом с игрой,
-# на APK — в Downloads или во внутренней папке приложения).
+# Любой сбой не закрывает игру молча: сначала отчёт дописывается в
+# crash_log.txt (на APK — в Downloads или во внутренней папке), затем
+# traceback печатается в консоль. Порядок важен: на APK консоли нет.
 
 import sys
 import traceback
 
-from game_config import log_crash, ON_ANDROID
+from game_config import log_crash, log_trace, ON_ANDROID
 
 
 if __name__ == "__main__":
@@ -18,6 +18,7 @@ if __name__ == "__main__":
         print("Игра только для Android")
         sys.exit(0)
     try:
+        log_trace("старт игры")
         from game_core import Game
         Game().run()
     except SystemExit:
@@ -25,5 +26,14 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         pass                      # Ctrl+C — тоже не сбой
     except BaseException:
-        traceback.print_exc()     # видно в консоли, если она есть
-        log_crash(traceback.format_exc())  # а это след на телефоне
+        # сначала след на телефоне, потом консоль: на установленном APK
+        # stderr бывает закрыт — печать роняла игру до записи в лог,
+        # и закрытие оставалось молчаливым без crash_log.txt (r20)
+        try:
+            log_crash(traceback.format_exc())
+        except Exception:
+            pass
+        try:
+            traceback.print_exc()
+        except Exception:
+            pass

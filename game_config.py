@@ -17,6 +17,15 @@
 # переводчик touch_pos в конфиге, применён во всех 5 местах чтения
 # координат (цикл + 4 ховера).
 # Следующий пункт — 5: развилка (проверка после запуска).
+# Горячее исправление r20: игра закрывалась молча при «новой игре» без
+# crash_log.txt. Причины: (1) в main.py сначала печатался traceback в
+# stderr — на установленном APK stderr бывает закрыт, печать роняла
+# игру до записи в лог; теперь лог пишется первым, печать — под
+# страховкой; (2) log_crash мог упасть на закрытом stderr — оба шага
+# под страховкой; (3) добавлен data_dir (cwd на APK недоступен —
+# сохранение hay_save.json могло молча не работать) и log_trace —
+# метки шагов в crash_log.txt: последняя метка показывает, где игра
+# умерла даже при жёстком падении ниже Python.
 
 import datetime
 import os
@@ -101,10 +110,14 @@ def wrap_text(text, font, max_w):
     Перенос по словам; одиночное слово шире лимита остаётся целиком.
     Возвращает список строк (без переноса, если текст короткий).
     """
+    if not text:
+        return [""]
     lines = []
     for chunk in text.split("\n"):
         cur = ""
-        for word in chunk.split(" "):
+        # страховка от аномально длинного текста (чтобы не поймать ANR):
+        # больше 4000 слов в одной строке интерфейса не бывает
+        for word in chunk.split(" ")[:4000]:
             test = (cur + " " + word).strip()
             if cur and font.size(test)[0] > max_w:
                 lines.append(cur)
@@ -331,6 +344,68 @@ LOG_FILE = "crash_log.txt"
 LOG_MAX_BYTES = 64 * 1024   # старые записи обрезаем, лог не разрастается
 
 
+def data_dir():
+    """Папка, в которую на этом устройстве реально можно писать.
+
+    На установленном APK текущий каталог бывает недоступен (обычно это
+    "/") — сохранение и лог могли молча не работать. Пробуем по очереди:
+    cwd, папку рядом с файлами игры, домашнюю папку; первый каталог,
+    куда удалось записать и удалить пробный файл, запоминаем.
+    """
+    global _DATA_DIR
+    if _DATA_DIR is None:
+        for cand in (os.getcwd(),
+                     os.path.dirname(os.path.abspath(__file__)),
+                     os.path.expanduser("~")):
+            try:
+                probe = os.path.join(cand, ".hay_probe")
+                with open(probe, "w", encoding="utf-8") as f:
+                    f.write("ok")
+                os.remove(probe)
+                _DATA_DIR = cand
+                break
+            except OSError:
+                continue
+        if _DATA_DIR is None:
+            _DATA_DIR = os.getcwd()
+    return _DATA_DIR
+
+
+_DATA_DIR = None
+
+
+def _log_places():
+    """Список папок для записи лога: Downloads (видно в файловом
+    менеджере — удобно переслать), затем data_dir()."""
+    places = []
+    downloads = "/storage/emulated/0/Download"
+    if os.path.isdir(downloads):
+        places.append(downloads)
+    places.append(data_dir())
+    return places
+
+
+def log_trace(step):
+    """Метка прогресса в crash_log.txt: последняя метка показывает, на
+    каком шаге игра умерла, даже если падение случилось ниже Python
+    (segfault в SDL/pygame в лог не попадает). Пишется немного:
+    старт, меню-клик, первый игровой кадр."""
+    block = "[trace] {} {}\n".format(
+        datetime.datetime.now().strftime("%H:%M:%S"), step)
+    for place in _log_places():
+        path = os.path.join(place, LOG_FILE)
+        try:
+            with open(path, "a", encoding="utf-8") as f:
+                f.write(block)
+            return
+        except OSError:
+            continue
+    try:
+        sys.stderr.write(block)
+    except Exception:
+        pass
+
+
 def log_crash(text):
     """Дописать отчёт о сбое в crash_log.txt (с датой и временем).
 
@@ -341,11 +416,7 @@ def log_crash(text):
     """
     stamp = datetime.datetime.now().strftime("%d.%m.%Y %H:%M:%S")
     block = "===== {} =====\n{}\n\n".format(stamp, text.rstrip())
-    places = []
-    downloads = "/storage/emulated/0/Download"
-    if os.path.isdir(downloads):
-        places.append(downloads)
-    places.append(os.getcwd())
+    places = _log_places()
     for place in places:
         path = os.path.join(place, LOG_FILE)
         try:
@@ -362,4 +433,7 @@ def log_crash(text):
             return
         except OSError:
             continue
-    sys.stderr.write(block)
+    try:
+        sys.stderr.write(block)  # на APK stderr бывает закрыт — страховка
+    except Exception:
+        pass

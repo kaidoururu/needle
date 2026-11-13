@@ -6,7 +6,10 @@ import os
 
 from game_config import *
 
-SAVE_FILE = "hay_save.json"
+# Сохранение пишем в папку, в которую реально можно писать: на APK
+# cwd бывает недоступен (обычно "/") — раньше сохранение могло молча
+# не работать и «Продолжить» никогда не появлялось (r20)
+SAVE_FILE = os.path.join(data_dir(), "hay_save.json")
 
 
 class SaveMixin:
