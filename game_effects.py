@@ -40,7 +40,7 @@ class EffectsMixin:
             return
         alpha = max(0, min(255, int(255 * min(1.0, n["life"] / 0.5))))
         w, h = self.screen.get_size()
-        pw, ph = 460, 260
+        pw, ph = S(460), S(260)
         px = (w - pw) // 2
         py = self.field_rect.top + (self.field_rect.h - ph) // 2 - 40
 
@@ -56,34 +56,34 @@ class EffectsMixin:
         self.screen.blit(panel, (px, py))
 
         icon_cx = px + pw // 2
-        icon_cy = py + 92
+        icon_cy = py + S(92)
         if n["item"] == "stone":
-            self.draw_stone(self.screen, icon_cx, icon_cy, 110, alpha)
+            self.draw_stone(self.screen, icon_cx, icon_cy, S(110), alpha)
         elif n["item"] == "plant":
-            self.draw_plant(self.screen, icon_cx, icon_cy, 110, alpha)
+            self.draw_plant(self.screen, icon_cx, icon_cy, S(110), alpha)
         elif n["item"] == "animal":
-            self.draw_animal(self.screen, icon_cx, icon_cy, 110, alpha)
+            self.draw_animal(self.screen, icon_cx, icon_cy, S(110), alpha)
         elif n["item"] == "bandage":
-            self.draw_bandage(self.screen, icon_cx, icon_cy, 110, alpha)
+            self.draw_bandage(self.screen, icon_cx, icon_cy, S(110), alpha)
         elif n["item"] == "antidote":
-            self.draw_antidote(self.screen, icon_cx, icon_cy, 110, alpha)
+            self.draw_antidote(self.screen, icon_cx, icon_cy, S(110), alpha)
         elif n["item"] == "compass":
-            self.draw_compass(self.screen, icon_cx, icon_cy, 110, alpha)
+            self.draw_compass(self.screen, icon_cx, icon_cy, S(110), alpha)
         elif n["item"] == "energy":
-            self.draw_energy(self.screen, icon_cx, icon_cy, 110, alpha)
+            self.draw_energy(self.screen, icon_cx, icon_cy, S(110), alpha)
         elif n["item"] == "clover":
-            self.draw_clover(self.screen, icon_cx, icon_cy, 110, alpha)
+            self.draw_clover(self.screen, icon_cx, icon_cy, S(110), alpha)
 
         color = GREEN_MSG if n["item"] in ("bandage", "antidote",
                                            "compass", "energy",
                                            "clover") else RED
         t1 = self.font_big.render(n["title"], True, color)
         t1.set_alpha(alpha)
-        self.screen.blit(t1, t1.get_rect(center=(w // 2, py + 178)))
+        self.screen.blit(t1, t1.get_rect(center=(w // 2, py + S(178))))
         if n["sub"]:
             t2 = self.font_mid.render(n["sub"], True, TEXT)
             t2.set_alpha(alpha)
-            self.screen.blit(t2, t2.get_rect(center=(w // 2, py + 226)))
+            self.screen.blit(t2, t2.get_rect(center=(w // 2, py + S(226))))
 
 
 

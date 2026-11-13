@@ -16,35 +16,40 @@ class UIMixin:
     # ---------- геометрия интерфейса ----------
     def build_ui(self):
         w, h = self.screen.get_size()
-        hud_top = h - HUD_H
-        bw = (w - 32) // 3
+        hud_top = h - S(HUD_H)
+        bw = (w - S(32)) // 3
         self.main_buttons = {
-            "sell": pygame.Rect(8, hud_top + 196, bw, 60),
-            "shop": pygame.Rect(bw + 16, hud_top + 196, bw, 60),
-            "next": pygame.Rect(2 * bw + 24, hud_top + 196, bw, 60),
+            "sell": pygame.Rect(S(8), hud_top + S(196), bw, S(60)),
+            "shop": pygame.Rect(bw + S(16), hud_top + S(196), bw, S(60)),
+            "next": pygame.Rect(2 * bw + S(24), hud_top + S(196), bw, S(60)),
         }
-        self.bandage_btn = pygame.Rect(w - 134, hud_top + 98, 92, 56)
-        self.antidote_btn = pygame.Rect(w - 234, hud_top + 98, 92, 56)
-        self.help_button = pygame.Rect(w - 300, hud_top + 96, 58, 58)
-        self.pause_button = pygame.Rect(w - 370, hud_top + 96, 58, 58)
+        self.bandage_btn = pygame.Rect(w - S(134), hud_top + S(98),
+                                       S(92), S(56))
+        self.antidote_btn = pygame.Rect(w - S(234), hud_top + S(98),
+                                        S(92), S(56))
+        self.help_button = pygame.Rect(w - S(300), hud_top + S(96),
+                                       S(58), S(58))
+        self.pause_button = pygame.Rect(w - S(370), hud_top + S(96),
+                                        S(58), S(58))
         self.intro_button = pygame.Rect(0, 0, 0, 0)
 
-        self.shop_panel_h = min(SHOP_H, h)
+        self.shop_panel_h = min(S(SHOP_H), h)
         self.shop_panels = []
         self.shop_buttons = {}
         keys = ("shovel", "cap", "regen", "price", "health", "bnd")
         for i, key in enumerate(keys):
-            panel = pygame.Rect(12, SHOP_TOP + i * (SHOP_PANEL_H + SHOP_GAP),
-                                w - 24, SHOP_PANEL_H)
-            if panel.bottom > self.shop_panel_h - 84:
+            panel = pygame.Rect(
+                S(12), S(SHOP_TOP) + i * (S(SHOP_PANEL_H) + S(SHOP_GAP)),
+                w - S(24), S(SHOP_PANEL_H))
+            if panel.bottom > self.shop_panel_h - S(84):
                 break
             self.shop_panels.append((key, panel))
             self.shop_buttons["buy_" + key] = pygame.Rect(
-                panel.right - 210, panel.y + 34, 196, 52)
+                panel.right - S(210), panel.y + S(34), S(196), S(52))
         self.shop_buttons["close"] = pygame.Rect(
-            w // 2 - 180, self.shop_panel_h - 72, 360, 58)
+            w // 2 - S(180), self.shop_panel_h - S(72), S(360), S(58))
 
-        self.help_panel_h = min(HELP_H, h)
+        self.help_panel_h = min(S(HELP_H), h)
         self.help_surf = None
 
 
@@ -62,7 +67,7 @@ class UIMixin:
 
 
     def draw_button(self, rect, text, enabled=True, ok=False, next_btn=False):
-        hovered = rect.collidepoint(self.map_to_canvas(pygame.mouse.get_pos()))
+        hovered = rect.collidepoint(pygame.mouse.get_pos())
         if not enabled:
             color = BTN_DISABLED
         elif next_btn:
@@ -112,11 +117,12 @@ class UIMixin:
 
         pygame.draw.rect(self.screen, (70, 55, 35), bar, border_radius=5)
         if fill_w > 0:
-            fill = pygame.Rect(bar.x + 2, bar.y + 2,
-                               max(4, fill_w - 4), bar.h - 4)
+            fill = pygame.Rect(bar.x + S(2), bar.y + S(2),
+                               max(S(4), fill_w - S(4)), bar.h - S(4))
             pygame.draw.rect(self.screen, (r, g, b), fill,
                              border_radius=5)
-            shine = pygame.Rect(fill.x, fill.y, fill.w, max(2, fill.h // 3))
+            shine = pygame.Rect(fill.x, fill.y, fill.w,
+                                max(S(2), fill.h // 3))
             pygame.draw.rect(self.screen,
                              (min(255, r + 60), min(255, g + 50),
                               min(255, b + 40)), shine, border_radius=4)
@@ -140,9 +146,7 @@ class UIMixin:
         if alpha is None:
             surf.blit(img, (px, py))
         else:
-            tmp = img.copy()
-            tmp.set_alpha(alpha)
-            surf.blit(tmp, (px, py))
+            surf.blit(self._alpha_copy("coin", img, alpha), (px, py))
 
     def _build_coin(self, surf, cx, cy, d, alpha=None):
         r = d // 2
@@ -158,7 +162,7 @@ class UIMixin:
 
 
     def draw_pill_button(self, rect, kind, can_use, count_text):
-        hovered = rect.collidepoint(self.map_to_canvas(pygame.mouse.get_pos()))
+        hovered = rect.collidepoint(pygame.mouse.get_pos())
         color = BTN_OK_HOVER if (hovered and can_use) else (
             BTN_OK if can_use else BTN_DISABLED)
         pygame.draw.rect(self.screen, color, rect, border_radius=10)
@@ -187,15 +191,16 @@ class UIMixin:
 
     def draw_hud(self):
         w, h = self.screen.get_size()
-        hud_top = h - HUD_H
-        pygame.draw.rect(self.screen, HUD_BG, (0, hud_top, w, HUD_H))
-        pygame.draw.rect(self.screen, PANEL_EDGE, (0, hud_top, w, 4))
+        hud_top = h - S(HUD_H)
+        pygame.draw.rect(self.screen, HUD_BG, (0, hud_top, w, S(HUD_H)))
+        pygame.draw.rect(self.screen, PANEL_EDGE, (0, hud_top, w, S(4)))
 
         hud_text = "Уровень: %d" % self.level
         self.screen.blit(self.txt(hud_text, self.font_small),
-                         (10, hud_top + 10))
+                         (S(10), hud_top + S(10)))
 
-        self.draw_bar(pygame.Rect(10, hud_top + 38, w - 20, 24),
+        self.draw_bar(pygame.Rect(S(10), hud_top + S(38), w - S(20),
+                                  S(24)),
                       self.stamina / self.max_stamina, pulse=True,
                       fixed_color=STAMINA_BLUE, label_text="Силы")
 
@@ -205,7 +210,8 @@ class UIMixin:
         else:
             health_label = "Здоровье"
             color = HEALTH_RED
-        self.draw_bar(pygame.Rect(10, hud_top + 70, w - 20, 24),
+        self.draw_bar(pygame.Rect(S(10), hud_top + S(70), w - S(20),
+                                  S(24)),
                       max(0.0, self.health) / self.max_health,
                       pulse=True, fixed_color=color,
                       label_text=health_label)
@@ -224,9 +230,9 @@ class UIMixin:
                 and not self.tutorial and self.shop_slide <= 0.5
                 and self.any_upgrade_affordable()):
             p = 0.5 + 0.5 * math.sin(self.time * 6.0)
-            grow = int(6 * p)
+            grow = int(S(6) * p)
             pygame.draw.rect(self.screen, GOLD,
-                             shop_rect.inflate(grow * 2, grow * 2), 4,
+                             shop_rect.inflate(grow * 2, grow * 2), S(4),
                              border_radius=12)
 
         if self.needle_found:
@@ -259,16 +265,17 @@ class UIMixin:
         (значки бонусов из шага 7 стоят у самой паузы — плашки встанут
         левее них). На узких экранах прячутся."""
         w = self.screen.get_width()
-        if w < HUD_CHIP_MIN_W:
+        if w < S(HUD_CHIP_MIN_W):
             return
         pb = self.pause_button
         cy = pb.centery
-        chip_h = 44
-        pad = 8
-        gap = 8
-        icon_d = 28
-        # запас под значки бонусов из шага 7 (до 3 штук при d=52)
-        reserve = 34 + 2 * (52 + 12) + 26 + 10
+        chip_h = S(44)
+        pad = S(8)
+        gap = S(8)
+        icon_d = S(28)
+        # запас под значки бонусов из шага 7 (до 3 штук при d=52):
+        # те же константы, что и в draw_bonus_icons, — через S()
+        reserve = S(34 + 2 * (52 + 12) + 26 + 10)
         right_edge = pb.left - reserve
 
         chips = []
@@ -277,7 +284,7 @@ class UIMixin:
             cw = pad + icon_d + 6 + num_surf.get_width() + pad
             chips.append((kind, num_surf, cw))
         total = sum(c[2] for c in chips) + gap * (len(chips) - 1)
-        x = max(10, right_edge - total)
+        x = max(S(10), right_edge - total)
 
         for kind, num_surf, cw in chips:
             rect = pygame.Rect(int(x), int(cy - chip_h // 2),
@@ -301,7 +308,7 @@ class UIMixin:
 
     def draw_pause_button(self):
         rect = self.pause_button
-        hovered = rect.collidepoint(self.map_to_canvas(pygame.mouse.get_pos()))
+        hovered = rect.collidepoint(pygame.mouse.get_pos())
         color = BTN_HOVER if hovered else BTN
         pygame.draw.rect(self.screen, color, rect, border_radius=10)
         pygame.draw.rect(self.screen, (30, 20, 10), rect, 2,
@@ -325,15 +332,15 @@ class UIMixin:
             return
         # значки в HUD: слева от кнопки паузы «II», по центру ряда кнопок
         pb = self.pause_button
-        d = 52
+        d = S(52)
         # если слева от паузы не хватает места — уменьшаем значки
-        while d > 28:
-            need = 34 + (len(icons) - 1) * (d + 12) + d // 2
-            if pb.left - need >= 10:
+        while d > S(28):
+            need = S(34) + (len(icons) - 1) * (d + S(12)) + d // 2
+            if pb.left - need >= S(10):
                 break
-            d -= 4
+            d -= S(4)
         for k, (name, frac) in enumerate(icons):
-            cx = pb.left - 34 - k * (d + 12)
+            cx = pb.left - S(34) - k * (d + S(12))
             cy = pb.centery
             ring = getattr(self, "_ring_cache", {}).get(d)
             if ring is None:
@@ -355,12 +362,12 @@ class UIMixin:
             rot = pygame.transform.rotate(icon, -self.time * 90.0)
             self.screen.blit(rot, rot.get_rect(center=(int(cx), int(cy))))
             if frac is not None:
-                rr = d // 2 + 7
+                rr = d // 2 + S(7)
                 arc_rect = pygame.Rect(0, 0, 2 * rr, 2 * rr)
                 arc_rect.center = (int(cx), int(cy))
                 pygame.draw.arc(self.screen, (110, 230, 110), arc_rect,
                                 math.pi / 2,
-                                math.pi / 2 + 2 * math.pi * frac, 4)
+                                math.pi / 2 + 2 * math.pi * frac, S(4))
 
     # ---------- обучение: спотлайт (кнопка поверх тьмы) ----------
 
@@ -431,7 +438,7 @@ class UIMixin:
             return
         overlay = pygame.Surface((w, h), pygame.SRCALPHA)
         overlay.fill((20, 14, 8, TUT_DARK_ALPHA))
-        hole = rect.inflate(28, 28)
+        hole = rect.inflate(S(28), S(28))
         pygame.draw.rect(overlay, (0, 0, 0, 0), hole, border_radius=12)
         self.screen.blit(overlay, (0, 0))
         # сама кнопка — поверх тьмы
@@ -455,26 +462,26 @@ class UIMixin:
                     "улучшение на них!" % self.money)
         # пульсирующая золотая рамка вокруг кнопки
         p = 0.5 + 0.5 * math.sin(self.time * 6.0)
-        grow = int(6 * p)
+        grow = int(S(6) * p)
         pygame.draw.rect(self.screen, GOLD,
-                         rect.inflate(grow * 2, grow * 2), 4,
+                         rect.inflate(grow * 2, grow * 2), S(4),
                          border_radius=12)
         # стрелка и плашка с текстом урока
         surf = self.font_mid.render(text, True, GOLD)
-        y = self.field_rect.top + 110
-        pill = pygame.Surface((surf.get_width() + 26,
-                               surf.get_height() + 16), pygame.SRCALPHA)
+        y = self.field_rect.top + S(110)
+        pill = pygame.Surface((surf.get_width() + S(26),
+                               surf.get_height() + S(16)), pygame.SRCALPHA)
         pygame.draw.rect(pill, MSG_BG + (230,), pill.get_rect(),
                          border_radius=12)
-        pygame.draw.rect(pill, GOLD + (230,), pill.get_rect(), 2,
+        pygame.draw.rect(pill, GOLD + (230,), pill.get_rect(), S(2),
                          border_radius=12)
         self.screen.blit(pill, pill.get_rect(center=(w // 2, y)))
         self.screen.blit(surf, surf.get_rect(center=(w // 2, y)))
-        arrow_y = rect.top - 34 - grow
+        arrow_y = rect.top - S(34) - grow
         pygame.draw.polygon(self.screen, GOLD,
-                            [(rect.centerx, rect.top - 10),
-                             (rect.centerx - 12, arrow_y),
-                             (rect.centerx + 12, arrow_y)])
+                            [(rect.centerx, rect.top - S(10)),
+                             (rect.centerx - S(12), arrow_y),
+                             (rect.centerx + S(12), arrow_y)])
 
     # ---------- подсказка простоя ----------
 
@@ -484,21 +491,21 @@ class UIMixin:
             return
         w = self.screen.get_width()
         surf = self.font_mid.render(hint["text"], True, GOLD)
-        y = self.field_rect.top + 60
-        pill = pygame.Surface((surf.get_width() + 26,
-                               surf.get_height() + 16), pygame.SRCALPHA)
+        y = self.field_rect.top + S(60)
+        pill = pygame.Surface((surf.get_width() + S(26),
+                               surf.get_height() + S(16)), pygame.SRCALPHA)
         pygame.draw.rect(pill, MSG_BG + (230,), pill.get_rect(),
                          border_radius=12)
-        pygame.draw.rect(pill, GOLD + (230,), pill.get_rect(), 2,
+        pygame.draw.rect(pill, GOLD + (230,), pill.get_rect(), S(2),
                          border_radius=12)
         self.screen.blit(pill, pill.get_rect(center=(w // 2, y)))
         self.screen.blit(surf, surf.get_rect(center=(w // 2, y)))
         p = 0.5 + 0.5 * math.sin(self.time * 5.0)
         target = hint.get("target")
         if target is not None:
-            grow = int(8 * p)
+            grow = int(S(8) * p)
             pygame.draw.rect(self.screen, GOLD,
-                             target.inflate(grow * 2, grow * 2), 4,
+                             target.inflate(grow * 2, grow * 2), S(4),
                              border_radius=10)
         cell = hint.get("cell")
         if cell is not None:
@@ -506,7 +513,7 @@ class UIMixin:
             yy = self.field_rect.y + (cell // self.cols) * self.ch
             r = pygame.Rect(int(x), int(yy), int(self.cw), int(self.ch))
             pygame.draw.rect(self.screen, GOLD,
-                             r.inflate(int(8 * p), int(8 * p)), 3,
+                             r.inflate(int(S(8) * p), int(S(8) * p)), S(3),
                              border_radius=4)
 
     # ---------- приветствие «КАК ИГРАТЬ» ----------
@@ -530,9 +537,9 @@ class UIMixin:
             "Сено продавайте, монеты тратьте в лавке.",
             "Нашли иглу — идите дальше. Детали — «?».",
         ]
-        pad = 26
-        line_h = 40
-        pw = min(700, w - 32)
+        pad = S(26)
+        line_h = S(40)
+        pw = min(S(700), w - S(32))
         max_w = pw - 2 * pad
         rows = []
         for t in texts:
@@ -548,18 +555,20 @@ class UIMixin:
             if cur:
                 rows.append(cur)
 
-        ph = 92 + len(rows) * line_h + 86
+        ph = S(92) + len(rows) * line_h + S(86)
         px, py = (w - pw) // 2, (h - ph) // 2
         panel = pygame.Surface((pw, ph), pygame.SRCALPHA)
         pygame.draw.rect(panel, (25, 18, 10, 245), panel.get_rect(),
                          border_radius=18)
-        pygame.draw.rect(panel, (255, 210, 80, 230), panel.get_rect(), 4,
-                         border_radius=18)
+        pygame.draw.rect(panel, (255, 210, 80, 230), panel.get_rect(),
+                         S(4), border_radius=18)
         self.screen.blit(panel, (px, py))
-        self.draw_centered("КАК ИГРАТЬ", self.font_shop_head, py + 44, GOLD)
+        self.draw_centered("КАК ИГРАТЬ", self.font_shop_head,
+                           py + S(44), GOLD)
         for i, row in enumerate(rows):
-            self.draw_centered(row, self.font_small, py + 92 + i * line_h)
-        bw, bh = 300, 58
+            self.draw_centered(row, self.font_small,
+                               py + S(92) + i * line_h)
+        bw, bh = S(300), S(58)
         self.intro_button = pygame.Rect((w - bw) // 2,
-                                        py + ph - bh - 20, bw, bh)
+                                        py + ph - bh - S(20), bw, bh)
         self.draw_button(self.intro_button, "Понятно!", ok=True)

@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
 # Ядро игры: класс Game собирается из примесей.
+# Пункт 1 PLAN.md (шаги 1–9 из 9, завершён): дисплей открывается один
+# раз, масштаб интерфейса считается до шрифтов, self.screen — прямая
+# ссылка на дисплей. map_to_canvas/draw_canvas удалены на шаге 9:
+# тапы сразу в координатах экрана, кадр рисуется напрямую.
 
 import pygame
 
@@ -27,17 +31,13 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         pygame.init()
         pygame.font.init()
         pygame.display.set_caption("Игла в стоге сена")
-        # пункт 11: на Android окно открывается на весь экран телефона,
-        # на ПК — как раньше, окно 720x1280 с изменяемым размером
-        if ON_ANDROID:
-            self.display = pygame.display.set_mode((0, 0),
-                                                   pygame.FULLSCREEN)
-        else:
-            self.display = pygame.display.set_mode(
-                (CANVAS_W, CANVAS_H), pygame.RESIZABLE)
-        # виртуальный холст: вся отрисовка идёт в него, в конце кадра
-        # он растягивается на дисплей — интерфейс не мельчает на телефоне
-        self.screen = pygame.Surface((CANVAS_W, CANVAS_H)).convert()
+        # пункт 1: дисплей открывается один раз на весь экран,
+        # без изменяемого окна — целевая платформа только Android
+        self.display = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+        # масштаб интерфейса считается один раз, до шрифтов и поля
+        set_scale(*self.display.get_size())
+        # холста больше нет: рисуем сразу в разрешение экрана
+        self.screen = self.display
         self.clock = pygame.time.Clock()
 
         self.font_big = None
@@ -111,12 +111,12 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         self.field_surf = None
         self.field_dirty = True
         self._dr_cache = {}
-        self._compass_ov = None
+        self._alpha_cache = {}
+        self._compass_ov_cache = {}
         self._fx_cache = {}
         self._ring_cache = {}
         self._coin_cache = {}
         self._notice_panel = None
-        self._scaled = None
 
         # состояния: меню, игра, пауза
         self.state = "menu"
@@ -153,57 +153,24 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
 
 
 
-    # ---------- холст и дисплей (пункт 11) ----------
+    # ---------- шрифты от масштаба интерфейса (пункт 1) ----------
 
-    def canvas_transform(self):
-        """Масштаб и смещение холста на реальном дисплее.
-
-        Холст вписывается целиком, по центру, без искажений: всё поле и
-        интерфейс остаются видимыми при любом размере экрана."""
-        dw, dh = self.display.get_size()
-        scale = min(dw / CANVAS_W, dh / CANVAS_H)
-        return scale, (dw - CANVAS_W * scale) / 2.0, \
-            (dh - CANVAS_H * scale) / 2.0
-
-    def map_to_canvas(self, pos):
-        """Точка реального экрана -> точка виртуального холста.
-
-        Нужна, чтобы тапы и клики попадали в кнопки и клетки поля при
-        любом масштабе вывода."""
-        scale, off_x, off_y = self.canvas_transform()
-        x = (pos[0] - off_x) / scale
-        y = (pos[1] - off_y) / scale
-        return (int(max(0, min(CANVAS_W, x))),
-                int(max(0, min(CANVAS_H, y))))
-
-    def draw_canvas(self):
-        """Растянуть холст на реальный дисплей (конец кадра)."""
-        scale, off_x, off_y = self.canvas_transform()
-        size = (max(1, int(CANVAS_W * scale)),
-                max(1, int(CANVAS_H * scale)))
-        if size == self.screen.get_size():
-            out = self.screen
-        else:
-            out = getattr(self, "_scaled", None)
-            if out is None or out.get_size() != size:
-                out = pygame.Surface(size).convert()
-                self._scaled = out
-            pygame.transform.smoothscale(self.screen, size, out)
-        self.display.fill((0, 0, 0))
-        self.display.blit(out, (int(off_x), int(off_y)))
     def make_fonts(self):
+        """Шрифты строятся от масштаба интерфейса: базовые размеры
+        заданы для 720x1280, S() переводит их в пиксели экрана."""
         try:
-            self.font_big = pygame.font.SysFont("arial", 52, bold=True)
-            self.font_mid = pygame.font.SysFont("arial", 30)
-            self.font_small = pygame.font.SysFont("arial", 24)
-            self.font_shop_head = pygame.font.SysFont("arial", 34, bold=True)
-            self.font_shop_desc = pygame.font.SysFont("arial", 24)
+            self.font_big = pygame.font.SysFont("arial", S(52), bold=True)
+            self.font_mid = pygame.font.SysFont("arial", S(30))
+            self.font_small = pygame.font.SysFont("arial", S(24))
+            self.font_shop_head = pygame.font.SysFont(
+                "arial", S(34), bold=True)
+            self.font_shop_desc = pygame.font.SysFont("arial", S(24))
         except Exception:
-            self.font_big = pygame.font.Font(None, 58)
-            self.font_mid = pygame.font.Font(None, 34)
-            self.font_small = pygame.font.Font(None, 28)
-            self.font_shop_head = pygame.font.Font(None, 40)
-            self.font_shop_desc = pygame.font.Font(None, 28)
+            self.font_big = pygame.font.Font(None, S(58))
+            self.font_mid = pygame.font.Font(None, S(34))
+            self.font_small = pygame.font.Font(None, S(28))
+            self.font_shop_head = pygame.font.Font(None, S(40))
+            self.font_shop_desc = pygame.font.Font(None, S(28))
         self.text_cache = {}
         self.help_surf = None
         self.shop_surf = None

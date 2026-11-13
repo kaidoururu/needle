@@ -92,40 +92,40 @@ class HelpMixin:
     # ---------- сборка страницы ----------
     def make_help_surface(self):
         w, h = self.screen.get_size()
-        self.help_panel_h = min(HELP_H, h)
+        self.help_panel_h = min(S(HELP_H), h)
         ph = self.help_panel_h
         surf = pygame.Surface((w, ph)).convert()
         surf.fill(SHOP_BG)
         pygame.draw.rect(surf, PANEL_EDGE, (0, 0, w, 4))
 
         title = self.font_big.render("СПРАВКА ПО ИГРЕ", True, GOLD)
-        surf.blit(title, title.get_rect(center=(w // 2, 40)))
+        surf.blit(title, title.get_rect(center=(w // 2, S(40))))
         page_lbl = self.txt("стр. %d из %d" % (self.help_page + 1,
                                                len(HELP_PAGES)),
                             self.font_small, SILVER)
-        surf.blit(page_lbl, page_lbl.get_rect(center=(w // 2, 74)))
+        surf.blit(page_lbl, page_lbl.get_rect(center=(w // 2, S(74))))
 
         lines = HELP_PAGES[self.help_page]
         # ниже 78 px — зона кнопок навигации
-        avail = (ph - 78) - 96
-        step = max(14, min(30, avail // max(1, len(lines))))
+        avail = (ph - S(78)) - S(96)
+        step = max(S(14), min(S(30), avail // max(1, len(lines))))
         # шрифт подстраивается под шаг: текст не обрезается на
         # невысоких экранах
-        fsize = max(13, min(24, step - 3))
+        fsize = max(S(13), min(S(24), step - S(3)))
         try:
             font = pygame.font.SysFont("arial", fsize)
         except Exception:
             font = pygame.font.Font(None, int(fsize * 1.7))
-        y = 96
+        y = S(96)
         for text, color in lines:
             if text:
-                surf.blit(self.txt(text, font, color), (30, y))
+                surf.blit(self.txt(text, font, color), (S(30), y))
             y += step
 
         # ---------- кнопки страниц ----------
         self.help_nav = {
-            "prev": pygame.Rect(w // 2 - 260, ph - 64, 200, 48),
-            "next": pygame.Rect(w // 2 + 60, ph - 64, 200, 48),
+            "prev": pygame.Rect(w // 2 - S(260), ph - S(64), S(200), S(48)),
+            "next": pygame.Rect(w // 2 + S(60), ph - S(64), S(200), S(48)),
         }
         for name, rect in self.help_nav.items():
             active = ((name == "prev" and self.help_page > 0)
@@ -160,7 +160,7 @@ class HelpMixin:
 
     def draw_help_button(self):
         rect = self.help_button
-        hovered = rect.collidepoint(self.map_to_canvas(pygame.mouse.get_pos()))
+        hovered = rect.collidepoint(pygame.mouse.get_pos())
         color = BTN_HOVER if hovered else BTN
         pygame.draw.circle(self.screen, color, rect.center, rect.w // 2)
         pygame.draw.circle(self.screen, (30, 20, 10), rect.center,

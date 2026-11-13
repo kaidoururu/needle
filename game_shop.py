@@ -15,17 +15,17 @@ class ShopMixin:
     # ---------- выдвижная лавка ----------
     def make_shop_surface(self):
         w, h = self.screen.get_size()
-        self.shop_panel_h = min(SHOP_H, h)
+        self.shop_panel_h = min(S(SHOP_H), h)
         ph = self.shop_panel_h
         surf = pygame.Surface((w, ph)).convert()
         surf.fill(SHOP_BG)
         pygame.draw.rect(surf, PANEL_EDGE, (0, 0, w, 4))
 
         title = self.font_big.render("ЛАВКА УЛУЧШЕНИЙ", True, GOLD)
-        surf.blit(title, title.get_rect(center=(w // 2, 40)))
+        surf.blit(title, title.get_rect(center=(w // 2, S(40))))
 
         for key, panel in self.shop_panels:
-            if panel.bottom > ph - 84:
+            if panel.bottom > ph - S(84):
                 continue
             it_title, it_desc = self.shop_item_info(key)
             lvl = {"shovel": self.shovel, "cap": self.cap_lvl,
@@ -34,21 +34,21 @@ class ShopMixin:
             pygame.draw.rect(surf, PANEL_BG, panel, border_radius=14)
             pygame.draw.rect(surf, PANEL_EDGE, panel, 3, border_radius=14)
 
-            icon = self.shop_icon(key, 80)
-            surf.blit(icon, (panel.x + 12, panel.y + 20))
+            icon = self.shop_icon(key, S(80))
+            surf.blit(icon, (panel.x + S(12), panel.y + S(20)))
 
             heading = "%s   ур. %d" % (it_title, lvl)
             if key == "bnd":
                 # у аптеки сразу видно, сколько лечит бинт на этом уровне
                 heading += "   лечит %d" % self.bandage_heal()
             surf.blit(self.font_shop_head.render(heading, True, GOLD),
-                      (panel.x + 104, panel.y + 10))
+                      (panel.x + S(104), panel.y + S(10)))
             surf.blit(self.font_shop_desc.render(it_desc, True, TEXT),
-                      (panel.x + 104, panel.y + 58))
+                      (panel.x + S(104), panel.y + S(58)))
 
         self.shop_surf = surf
         self.shop_buttons["close"] = pygame.Rect(
-            w // 2 - 180, ph - 72, 360, 58)
+            w // 2 - S(180), ph - S(72), S(360), S(58))
 
 
 
@@ -69,12 +69,12 @@ class ShopMixin:
         self.screen.blit(self.shop_surf, (0, top))
 
         # шапка: монета и счётчик (монеты видны всегда)
-        row_cy = top + SHOP_TOP - 46
-        self.draw_coin(self.screen, 34, row_cy, 36)
+        row_cy = top + S(SHOP_TOP) - S(46)
+        self.draw_coin(self.screen, S(34), row_cy, S(36))
         money_text = self.font_mid.render("Монет: %d" % self.money,
                                           True, GOLD)
         self.screen.blit(money_text,
-                         (60, row_cy - money_text.get_height() // 2))
+                         (S(60), row_cy - money_text.get_height() // 2))
 
         costs = {
             "shovel": self.shovel_cost(),

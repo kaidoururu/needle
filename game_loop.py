@@ -234,7 +234,7 @@ class LoopMixin:
     def run(self):
         running = True
         while running:
-            dt = self.clock.tick(60) / 1000.0
+            dt = self.clock.tick(FPS) / 1000.0
             self.time += dt
 
             if (self.state == "game" and not self.intro_open
@@ -284,25 +284,44 @@ class LoopMixin:
                 if self.shop_slide < self.shop_target:
                     self.shop_slide = min(self.shop_target,
                                           self.shop_slide +
-                                          SLIDE_SPEED * dt)
+                                          Sf(SLIDE_SPEED) * dt)
                 elif self.shop_slide > self.shop_target:
                     self.shop_slide = max(self.shop_target,
                                           self.shop_slide -
-                                          SLIDE_SPEED * dt)
+                                          Sf(SLIDE_SPEED) * dt)
                 if self.help_slide < self.help_target:
                     self.help_slide = min(self.help_target,
                                           self.help_slide +
-                                          SLIDE_SPEED * dt)
+                                          Sf(SLIDE_SPEED) * dt)
                 elif self.help_slide > self.help_target:
                     self.help_slide = max(self.help_target,
                                           self.help_slide -
-                                          SLIDE_SPEED * dt)
+                                          Sf(SLIDE_SPEED) * dt)
 
                 # отложенные уроки (пункт 10): ловушка ставит урок в
                 # очередь, подсветка открывается через TUT_DELAY после
                 # плашки «Укус зверя!» / «Отравление!»
                 if self.pending_tutorial:
                     self.update_pending_tutorial()
+
+                # урок «Лавка» (пункт 13а): единый триггер — как только
+                # копилка доросла до первого улучшения. Раньше урок
+                # запускался только из sell() и терялся, если монеты
+                # пришли не с продажи (бонус за иглу, серия рывков,
+                # награда за уровень) или сено продали уже после
+                # находки иглы. Условия: урок не пройден, не пауза
+                # (иначе блок не выполняется), не экраны смерти/победы,
+                # нет другого урока и очереди уроков, лавка и справка
+                # закрыты — тогда запускаем спотлайт.
+                if (not self.tut_shop_done
+                        and self.money >= TUT_SHOP_MIN_MONEY
+                        and not self.won and not self.dead
+                        and not self.pending_tutorial
+                        and self.shop_slide < 0.5
+                        and self.help_slide < 0.5):
+                    self.tut_shop_done = True
+                    self.save_game()
+                    self.start_tutorial("shop")
 
                 self.idle_time += dt
                 self.update_idle_hint()
@@ -312,37 +331,12 @@ class LoopMixin:
                     if self.state != "menu":
                         self.save_game()
                     running = False
-                elif event.type == pygame.VIDEORESIZE:
-                    # пункт 11: холст фиксированный, поле, шрифты и
-                    # интерфейс пересобирать не нужно — дисплей просто
-                    # получает новую поверхность под новый размер окна
-                    self.display = pygame.display.set_mode(
-                        event.size, pygame.RESIZABLE)
-                elif event.type == pygame.KEYDOWN:
-                    if self.help_slide > 0.5:
-                        # листать справку стрелками
-                        if event.key == pygame.K_LEFT:
-                            self.help_page = max(0, self.help_page - 1)
-                            self.help_surf = None
-                        elif event.key == pygame.K_RIGHT:
-                            self.help_page = min(self.help_pages - 1,
-                                                 self.help_page + 1)
-                            self.help_surf = None
-                    if event.key == pygame.K_ESCAPE:
-                        if (self.state == "game" and not self.intro_open
-                                and not self.tutorial):
-                            self.open_pause()
-                        elif self.state == "pause":
-                            self.state = "game"
-                    self.idle_time = 0.0
-                    self.idle_hint = None
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     pos = getattr(event, "pos", None)
                     if pos is None:
                         continue
-                    # пункт 11: тап пришёл в экранных координатах —
-                    # пересчитываем в координаты виртуального холста
-                    pos = self.map_to_canvas(pos)
+                    # пункт 1: тап приходит сразу в координатах экрана —
+                    # промежуточного холста больше нет
                     if self.state == "menu":
                         if self.handle_menu_click(pos) == "quit":
                             running = False
@@ -385,7 +379,6 @@ class LoopMixin:
                     self.draw_pause_button()
                 if self.state == "pause":
                     self.draw_pause_screen()
-            self.draw_canvas()
             pygame.display.flip()
         pygame.quit()
 

@@ -14,7 +14,7 @@ class FieldMixin:
 
     # ---------- стог ----------
     def cell_size(self):
-        return max(CELL_MIN, CELL_START - (self.level - 1) * CELL_STEP)
+        return S(max(CELL_MIN, CELL_START - (self.level - 1) * CELL_STEP))
 
 
 
@@ -108,7 +108,7 @@ class FieldMixin:
     def build_field(self):
         w, h = self.screen.get_size()
         cell = self.cell_size()
-        self.field_rect = pygame.Rect(0, 0, w, h - HUD_H)
+        self.field_rect = pygame.Rect(0, 0, w, h - S(HUD_H))
         self.cols = max(1, int(self.field_rect.w // cell))
         self.rows = max(1, int(self.field_rect.h // cell))
         self.cw = self.field_rect.w / self.cols
@@ -290,13 +290,19 @@ class FieldMixin:
         y0 = self.field_rect.y + (0 if north else qh)
         p = 0.55 + 0.45 * math.sin(self.time * 5.0)
         size = (max(1, int(qw)), max(1, int(qh)))
-        ov = getattr(self, "_compass_ov", None)
-        if ov is None or ov.get_size() != size:
-            ov = pygame.Surface(size)
-            ov.fill((255, 200, 60))
-            self._compass_ov = ov
-        ov.set_alpha(int(60 * p))
-        self.screen.blit(ov, (int(x0), int(y0)))
+        cache = getattr(self, "_compass_ov_cache", None)
+        if cache is None:
+            cache = self._compass_ov_cache = {}
+        levels = cache.get(size)
+        if levels is None:
+            levels = []
+            for i in range(8):
+                ov = pygame.Surface(size)
+                ov.fill((255, 200, 60))
+                ov.set_alpha(int(60 * (i + 1) / 8))
+                levels.append(ov)
+            cache[size] = levels
+        self.screen.blit(levels[min(7, int(p * 8))], (int(x0), int(y0)))
         pygame.draw.rect(self.screen, GOLD,
                          (int(x0), int(y0), int(qw), int(qh)),
                          max(3, int(2 + 4 * p)), border_radius=12)

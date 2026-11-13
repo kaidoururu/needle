@@ -27,9 +27,24 @@ class DrawingsMixin:
         if alpha is None:
             surf.blit(img, (px, py))
         else:
-            tmp = img.copy()
-            tmp.set_alpha(alpha)
-            surf.blit(tmp, (px, py))
+            surf.blit(self._alpha_copy(name, img, alpha), (px, py))
+
+    # ---------- общий кэш прозрачности (пункт 4) ----------
+    def _alpha_index(self, alpha):
+        return max(0, min(7, int(alpha) * 8 // 256))
+
+    def _alpha_copy(self, name, img, alpha):
+        cache = getattr(self, "_alpha_cache", None)
+        if cache is None:
+            cache = self._alpha_cache = {}
+        idx = self._alpha_index(alpha)
+        key = (name, idx)
+        cp = cache.get(key)
+        if cp is None:
+            cp = img.copy()
+            cp.set_alpha(int(255 * (idx + 1) / 8))
+            cache[key] = cp
+        return cp
 
     def draw_stone(self, surf, cx, cy, d, alpha=None):
         return self._cached_draw("draw_stone", surf, cx, cy, d, alpha, self._build_draw_stone)
@@ -341,7 +356,8 @@ class DrawingsMixin:
                    (int(size * 0.72), int(size * 0.42)),
                    (int(size * 0.52), int(size * 0.42))]
             pygame.draw.polygon(surf, ICON_BOLT, pts)
-            pygame.draw.lines(surf, (200, 160, 30), False, pts, 2)
+            pygame.draw.lines(surf, (200, 160, 30), False, pts,
+                              max(2, size // 40))
         elif key == "price":
             pygame.draw.circle(surf, (150, 100, 40),
                                (c, int(size * 0.60)), int(size * 0.30))

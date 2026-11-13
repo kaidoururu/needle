@@ -76,15 +76,14 @@ class EconomyMixin:
                 or self.money >= self.bnd_cost())
 
     def sell(self):
+        # урок «Лавка» больше не запускается отсюда (пункт 13а):
+        # единый триггер — в главном цикле (game_loop.run), он
+        # срабатывает, как только копилка доросла до первого улучшения,
+        # независимо от того, откуда пришли монеты.
         if self.hay > 0:
             self.money += self.hay_value
             self.hay = 0
             self.hay_value = 0
-            # урок «Лавка»: после первой продажи при накопленной сумме
-            if (not self.tut_shop_done
-                    and self.money >= TUT_SHOP_MIN_MONEY
-                    and not self.won and not self.dead):
-                self.start_tutorial("shop")
             self.save_game()
 
 

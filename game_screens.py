@@ -21,14 +21,15 @@ class ScreensMixin:
         cx = w // 2
         self.draw_centered("ИГЛА В СТОГЕ СЕНА", self.font_big,
                            int(h * 0.20), GOLD)
-        ny = int(h * 0.20) + 62
+        ny = int(h * 0.20) + S(62)
         needle_color = GOLD if getattr(self, "golden_needle", False) \
             else SILVER
-        pygame.draw.line(self.screen, needle_color, (cx - 40, ny + 30),
-                         (cx + 40, ny - 30), 5)
-        pygame.draw.circle(self.screen, needle_color, (cx - 40, ny + 30), 8)
+        pygame.draw.line(self.screen, needle_color, (cx - S(40), ny + S(30)),
+                         (cx + S(40), ny - S(30)), S(5))
+        pygame.draw.circle(self.screen, needle_color,
+                           (cx - S(40), ny + S(30)), S(8))
 
-        bw, bh, gap = 420, 66, 22
+        bw, bh, gap = S(420), S(66), S(22)
         y0 = int(h * 0.40)
         r1 = pygame.Rect(cx - bw // 2, y0, bw, bh)
         r2 = pygame.Rect(cx - bw // 2, y0 + (bh + gap), bw, bh)
@@ -44,17 +45,17 @@ class ScreensMixin:
         overlay = pygame.Surface((w, h), pygame.SRCALPHA)
         overlay.fill((20, 14, 8, 170))
         self.screen.blit(overlay, (0, 0))
-        pw, ph = 460, 404   # раньше 372: нижняя кнопка вылезала за рамку
-        px, py = max(10, (w - pw) // 2), max(10, (h - ph) // 2)
+        pw, ph = S(460), S(404)   # раньше 372: нижняя кнопка вылезала за рамку
+        px, py = max(S(10), (w - pw) // 2), max(S(10), (h - ph) // 2)
         panel = pygame.Surface((pw, ph), pygame.SRCALPHA)
         pygame.draw.rect(panel, (25, 18, 10, 240), panel.get_rect(),
-                         border_radius=18)
-        pygame.draw.rect(panel, (255, 210, 80, 230), panel.get_rect(), 4,
-                         border_radius=18)
+                         border_radius=S(18))
+        pygame.draw.rect(panel, (255, 210, 80, 230), panel.get_rect(), S(4),
+                         border_radius=S(18))
         self.screen.blit(panel, (px, py))
-        self.draw_centered("ПАУЗА", self.font_big, py + 52, GOLD)
-        bw, bh, gap = 380, 56, 14
-        y0 = py + 112
+        self.draw_centered("ПАУЗА", self.font_big, py + S(52), GOLD)
+        bw, bh, gap = S(380), S(56), S(14)
+        y0 = py + S(112)
         names = [("continue", "Продолжить"),
                  ("restart", "Рестарт уровня"),
                  ("new", "Начать новую игру"),
@@ -75,11 +76,12 @@ class ScreensMixin:
         cx = w // 2
         self.draw_centered("ИГОЛКА НАЙДЕНА!",
                            self.font_big, int(h * 0.24), GOLD)
-        ny = int(h * 0.24) + 55
+        ny = int(h * 0.24) + S(55)
         needle_color = GOLD if self.golden_needle else SILVER
-        pygame.draw.line(self.screen, needle_color, (cx - 40, ny + 30),
-                         (cx + 40, ny - 30), 5)
-        pygame.draw.circle(self.screen, needle_color, (cx - 40, ny + 30), 8)
+        pygame.draw.line(self.screen, needle_color, (cx - S(40), ny + S(30)),
+                         (cx + S(40), ny - S(30)), S(5))
+        pygame.draw.circle(self.screen, needle_color,
+                           (cx - S(40), ny + S(30)), S(8))
 
         stats = [
             "Открыт уровень %d" % (self.level + 1),
@@ -90,15 +92,15 @@ class ScreensMixin:
         ]
         for i, line in enumerate(stats):
             self.draw_centered(line, self.font_mid,
-                               int(h * 0.24) + 110 + i * 42)
+                               int(h * 0.24) + S(110) + i * S(42))
 
         if self.golden_needle:
             self.draw_centered(
                 "ЗОЛОТАЯ ИГЛА! Бонус x%d" % GOLD_NEEDLE_BONUS_MULT,
-                self.font_mid, int(h * 0.24) + 110 + len(stats) * 42,
+                self.font_mid, int(h * 0.24) + S(110) + len(stats) * S(42),
                 GOLD)
 
-        bw, bh, gap = 220, 60, 14
+        bw, bh, gap = S(220), S(60), S(14)
         y0 = int(h * 0.68)
         total = bw * 3 + gap * 2
         x0 = cx - total // 2
@@ -130,9 +132,9 @@ class ScreensMixin:
         ]
         for i, line in enumerate(lines):
             self.draw_centered(line, self.font_mid,
-                               int(h * 0.28) + 90 + i * 44)
+                               int(h * 0.28) + S(90) + i * S(44))
 
-        bw, bh = 340, 60
+        bw, bh = S(340), S(60)
         y0 = int(h * 0.66)
         r1 = pygame.Rect(cx - bw // 2, y0, bw, bh)
         self.death_buttons = {"continue": r1}
