@@ -158,27 +158,30 @@ class EffectsMixin:
                 ov.fill(rgb)
                 cache[key] = ov
             return ov
+        # r47 (план производительности, П.4): set_alpha пелен получает
+        # pygame.RLEACCEL — blit сплошного полноэкранного слоя с общей
+        # альфой идёт по быстрому пути SDL. Визуально идентично.
         # r30 (план r28, точки b и c): плавное затухание убрано —
         # укус: полная плотность, пока идёт таймер, затем мгновенно ноль;
         # растение: две фазы — яркая вспышка на время таймера, затем
         # стабильная пелена POISON_TINT_ALPHA без переходов
         if self.bite_flash > 0:
             ov = ov_for(BITE_RED)
-            ov.set_alpha(BITE_FLASH_ALPHA)
+            ov.set_alpha(BITE_FLASH_ALPHA, pygame.RLEACCEL)
             self.screen.blit(ov, (0, 0))
         if self.poison_flash > 0:
             ov = ov_for(POISON_FLASH)
-            ov.set_alpha(POISON_FLASH_ALPHA)
+            ov.set_alpha(POISON_FLASH_ALPHA, pygame.RLEACCEL)
             self.screen.blit(ov, (0, 0))
         elif self.poison_time > 0:
             ov = ov_for(POISON_FLASH)
-            ov.set_alpha(POISON_TINT_ALPHA)
+            ov.set_alpha(POISON_TINT_ALPHA, pygame.RLEACCEL)
             self.screen.blit(ov, (0, 0))
         # энергетик: жёлтая тонировка поля — та же техника,
         # отдельной веткой, чтобы обе заливки накладывались
         if self.energy_time > 0:
             ov = ov_for(ENERGY_TINT)
-            ov.set_alpha(ENERGY_TINT_ALPHA)
+            ov.set_alpha(ENERGY_TINT_ALPHA, pygame.RLEACCEL)
             self.screen.blit(ov, (0, 0))
     def update_flashes(self, dt):
         # таймеры только отсчитывают длительность фазы яркой вспышки,

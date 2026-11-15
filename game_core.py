@@ -196,6 +196,12 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         self.help_surf = None
         self.shop_surf = None
         self._rot_cache = {}
+        self._pill_cache = {}
+        # П.2 r45: чистка кэшей панелей приветствия и паузы
+        self._intro_cache = {}
+        self._pause_panel = {}
+        # П.3 r46: чистка кэша дуг прогресса бонусов
+        self._arc_cache = {}
         clear_dark_cache()
 
 

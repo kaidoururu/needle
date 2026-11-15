@@ -14,6 +14,8 @@ class DiggingMixin:
 
     # ---------- ловушки ----------
     def trigger_item(self, item):
+        if item not in ("stone", "plant", "animal"):
+            self.play("coin", 0.5)
         if item == "stone":
             if self.shovel >= STONE_IMMUNE_LVL and self.dig_side() >= 7:
                 self.money = max(0, self.money - STONE_MONEY_PENALTY)
@@ -49,6 +51,7 @@ class DiggingMixin:
             dmg = self.animal_damage()
             self.health -= dmg
             self.bite_flash = 1.0
+            self.play("error", 0.7)
             self.show_notice(item)
             new_h = max(0, self.health)
             self.notice["sub"] = ("Здоровье: %d -> %d"
@@ -90,11 +93,13 @@ class DiggingMixin:
             self.show_notice(item)
             self.notice["sub"] = "Игла в подсвеченной зоне стога"
         elif item == "energy":
+            self.play("click")
             self.energy_time = ENERGY_TIME
             self.show_notice(item)
             self.notice["sub"] = ("%d секунд: энергия не тратится"
                                   % int(ENERGY_TIME))
         elif item == "clover":
+            self.play("click")
             self.clover_time = CLOVER_TIME
             self.show_notice(item)
             self.notice["sub"] = (
@@ -142,6 +147,7 @@ class DiggingMixin:
             else:
                 trapped = True
                 self.trigger_item(worst)
+                self.play("error", 0.9)
         if saved:
             self.add_message("Клевер спас от ловушки!", GREEN_MSG)
         # лекарства достают, только если ни одна ловушка не сработала
@@ -211,6 +217,7 @@ class DiggingMixin:
                 self.hay_value += cell["price"]
                 cell["hay"] = False
             if i == self.needle_idx:
+                self.play("fanfare")
                 self.won = True
                 self.needle_found = True
                 self.money += self.needle_bonus()
@@ -221,6 +228,7 @@ class DiggingMixin:
                                      % GOLD_NEEDLE_BONUS_MULT, GOLD)
                 self.save_game()
         if dug_now:
+            self.play("click", 0.4)
             self.digs += 1
             self.repaint_cells(dug_now)
             self.spawn_straws(dug_now)

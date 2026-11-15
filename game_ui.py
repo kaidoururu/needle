@@ -365,12 +365,31 @@ class UIMixin:
                 self._rot_cache[key] = rot
             self.screen.blit(rot, rot.get_rect(center=(int(cx), int(cy))))
             if frac is not None:
+                # П.3 r46: дуга прогресса дискретна — 16 ступеней,
+                # готовые поверхности лежат в _arc_cache, в кадре один
+                # blit. pygame.draw.arc — самый медленный примитив
+                # pygame, в кадре он больше не вызывается; при нуле
+                # прогресса дуга не блитится вовсе.
                 rr = d // 2 + S(7)
-                arc_rect = pygame.Rect(0, 0, 2 * rr, 2 * rr)
-                arc_rect.center = (int(cx), int(cy))
-                pygame.draw.arc(self.screen, (110, 230, 110), arc_rect,
-                                math.pi / 2,
-                                math.pi / 2 + 2 * math.pi * frac, S(4))
+                step = int(round(frac * 16.0))
+                if step > 0:
+                    step = min(step, 16)
+                    key = (rr, step)
+                    arc = self._arc_cache.get(key)
+                    if arc is None:
+                        pad = S(3) + 2
+                        size = 2 * rr + 2 * pad
+                        arc = pygame.Surface((size, size),
+                                             pygame.SRCALPHA)
+                        pygame.draw.arc(
+                            arc, (110, 230, 110),
+                            pygame.Rect(pad, pad, 2 * rr, 2 * rr),
+                            math.pi / 2,
+                            math.pi / 2 + 2 * math.pi * step / 16.0, S(4))
+                        arc = arc.convert_alpha()
+                        self._arc_cache[key] = arc
+                    arc_pos = arc.get_rect(center=(int(cx), int(cy)))
+                    self.screen.blit(arc, arc_pos)
 
     # ---------- обучение: спотлайт (кнопка поверх тьмы) ----------
 
@@ -468,30 +487,45 @@ class UIMixin:
         grow = S(6)  # постоянный отступ стрелки
         self._alpha_frame(rect.inflate(grow * 2, grow * 2), 12, S(4),
                           HINT_RING_ALPHA[ph])
-        # стрелка и плашка с текстом урока: длинный текст переносится
-        # по ширине экрана (w - S(40)), плашка растёт в высоту
-        lines = wrap_text(text, self.font_mid, w - S(40))
-        lh = self.font_mid.get_linesize()
+        # П.1 r44: плашка урока из кэша _gold_pill — один blit в кадре
+        pill = self._gold_pill(text)
         y = self.field_rect.top + S(110)
-        pill_w = max(self.font_mid.size(ln)[0] for ln in lines) + S(26)
-        pill_h = lh * len(lines) + S(16)
-        pill = pygame.Surface((pill_w, pill_h), pygame.SRCALPHA)
-        pygame.draw.rect(pill, MSG_BG + (230,), pill.get_rect(),
-                         border_radius=12)
-        pygame.draw.rect(pill, GOLD + (230,), pill.get_rect(), S(2),
-                         border_radius=12)
         self.screen.blit(pill, pill.get_rect(center=(w // 2, y)))
-        ty = y - pill_h // 2 + S(8)
-        for ln in lines:
-            surf = self.font_mid.render(ln, True, GOLD)
-            self.screen.blit(surf,
-                             surf.get_rect(center=(w // 2, ty + lh // 2)))
-            ty += lh
         arrow_y = rect.top - S(34) - grow
         pygame.draw.polygon(self.screen, GOLD,
                             [(rect.centerx, rect.top - S(10)),
                              (rect.centerx - S(12), arrow_y),
                              (rect.centerx + S(12), arrow_y)])
+
+    def _gold_pill(self, text):
+        """П.1 r44: плашка с золотым текстом собирается один раз
+        на пару (текст, ширина экрана) и живёт в кэше _pill_cache.
+        В кадре остаётся один blit — без SRCALPHA и рендеров строк."""
+        w = self.screen.get_width()
+        key = (text, w)
+        cache = getattr(self, "_pill_cache", None)
+        if cache is None:
+            cache = self._pill_cache = {}
+        pill = cache.get(key)
+        if pill is None:
+            lines = wrap_text(text, self.font_mid, w - S(40))
+            lh = self.font_mid.get_linesize()
+            pill_w = max(self.font_mid.size(ln)[0] for ln in lines) + S(26)
+            pill_h = lh * len(lines) + S(16)
+            pill = pygame.Surface((pill_w, pill_h), pygame.SRCALPHA)
+            pygame.draw.rect(pill, MSG_BG + (230,), pill.get_rect(),
+                             border_radius=12)
+            pygame.draw.rect(pill, GOLD + (230,), pill.get_rect(), S(2),
+                             border_radius=12)
+            ty = S(8)
+            for ln in lines:
+                surf = self.font_mid.render(ln, True, GOLD)
+                pill.blit(surf,
+                          surf.get_rect(center=(pill_w // 2, ty + lh // 2)))
+                ty += lh
+            pill = pill.convert_alpha()
+            cache[key] = pill
+        return pill
 
     def _alpha_frame(self, rect, radius, width, alpha):
         # r36: рамка с постоянной альфой из кэша поверхностей —
@@ -517,23 +551,10 @@ class UIMixin:
         if not hint or self.won or self.dead:
             return
         w = self.screen.get_width()
-        lines = wrap_text(hint["text"], self.font_mid, w - S(40))
-        lh = self.font_mid.get_linesize()
+        # П.1 r44: плашка подсказки из кэша _gold_pill — один blit в кадре
+        pill = self._gold_pill(hint["text"])
         y = self.field_rect.top + S(60)
-        pill_w = max(self.font_mid.size(ln)[0] for ln in lines) + S(26)
-        pill_h = lh * len(lines) + S(16)
-        pill = pygame.Surface((pill_w, pill_h), pygame.SRCALPHA)
-        pygame.draw.rect(pill, MSG_BG + (230,), pill.get_rect(),
-                         border_radius=12)
-        pygame.draw.rect(pill, GOLD + (230,), pill.get_rect(), S(2),
-                         border_radius=12)
         self.screen.blit(pill, pill.get_rect(center=(w // 2, y)))
-        ty = y - pill_h // 2 + S(8)
-        for ln in lines:
-            surf = self.font_mid.render(ln, True, GOLD)
-            self.screen.blit(surf,
-                             surf.get_rect(center=(w // 2, ty + lh // 2)))
-            ty += lh
         # две дискретные фазы вместо sin-пульсации (r36)
         alpha = HINT_RING_ALPHA[int(self.time * 2.0) % 2]
         target = hint.get("target")
@@ -548,14 +569,19 @@ class UIMixin:
 
     # ---------- приветствие «КАК ИГРАТЬ» ----------
 
-    def draw_intro(self):
-        """Панель приветствия при каждом входе из меню: суть игры и
-        кнопка «Понятно!». Игра на паузе (обновления пропускаются в
-        game_loop.run), клики мимо панели блокированы."""
-        if not self.intro_open:
-            return
-        w, h = self.screen.get_size()
-        self.screen.blit(get_dark(w, h, (20, 14, 8, 175)), (0, 0))
+    def _intro_panel(self, w, h):
+        """П.2 r45: панель «КАК ИГРАТЬ» целиком — фон, рамка, заголовок
+        и строки текста — строится один раз на размер экрана и живёт
+        в кэше _intro_cache (чистится в make_fonts). Заголовок и строки
+        блитятся внутрь при построении. В кадре остаётся один blit
+        панели; кнопка «Понятно!» рисуется поверх отдельно — у неё есть
+        наведение."""
+        cache = getattr(self, "_intro_cache", None)
+        if cache is None:
+            cache = self._intro_cache = {}
+        panel = cache.get((w, h))
+        if panel is not None:
+            return panel
 
         # Брифинг по плану п.20: четыре короткие строки вместо шести.
         # Каждая строка короче ширины панели (~48 знаков) — не переносится.
@@ -584,18 +610,35 @@ class UIMixin:
                 rows.append(cur)
 
         ph = S(92) + len(rows) * line_h + S(86)
-        px, py = (w - pw) // 2, (h - ph) // 2
         panel = pygame.Surface((pw, ph), pygame.SRCALPHA)
         pygame.draw.rect(panel, (25, 18, 10, 245), panel.get_rect(),
                          border_radius=18)
         pygame.draw.rect(panel, (255, 210, 80, 230), panel.get_rect(),
                          S(4), border_radius=18)
-        self.screen.blit(panel, (px, py))
-        self.draw_centered("КАК ИГРАТЬ", self.font_shop_head,
-                           py + S(44), GOLD)
+        head = self.txt("КАК ИГРАТЬ", self.font_shop_head, GOLD)
+        panel.blit(head, head.get_rect(center=(pw // 2, S(44))))
         for i, row in enumerate(rows):
-            self.draw_centered(row, self.font_small,
-                               py + S(92) + i * line_h)
+            row_surf = self.txt(row, self.font_small)
+            panel.blit(row_surf, row_surf.get_rect(
+                center=(pw // 2, S(92) + i * line_h)))
+        panel = panel.convert_alpha()
+        cache[(w, h)] = panel
+        return panel
+
+    def draw_intro(self):
+        """Панель приветствия при каждом входе из меню: суть игры и
+        кнопка «Понятно!». Игра на паузе (обновления пропускаются в
+        game_loop.run), клики мимо панели блокированы.
+        П.2 r45: панель целиком из кэша _intro_panel — в кадре один
+        blit и живая кнопка «Понятно!»."""
+        if not self.intro_open:
+            return
+        w, h = self.screen.get_size()
+        self.screen.blit(get_dark(w, h, (20, 14, 8, 175)), (0, 0))
+        panel = self._intro_panel(w, h)
+        pw, ph = panel.get_size()
+        px, py = (w - pw) // 2, (h - ph) // 2
+        self.screen.blit(panel, (px, py))
         bw, bh = S(300), S(58)
         self.intro_button = pygame.Rect((w - bw) // 2,
                                         py + ph - bh - S(20), bw, bh)

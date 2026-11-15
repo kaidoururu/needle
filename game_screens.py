@@ -38,17 +38,30 @@ class ScreensMixin:
         self.draw_button(r3, "Выход")
 
     # ---------- меню паузы ----------
+    def _pause_panel_surf(self, pw, ph):
+        """П.2 r45: фон и рамка панели паузы строятся один раз на размер
+        панели и живут в кэше _pause_panel (чистится в make_fonts).
+        Заголовок и кнопки рисуются поверх: у кнопок есть наведение."""
+        cache = getattr(self, "_pause_panel", None)
+        if cache is None:
+            cache = self._pause_panel = {}
+        surf = cache.get((pw, ph))
+        if surf is None:
+            surf = pygame.Surface((pw, ph), pygame.SRCALPHA)
+            pygame.draw.rect(surf, (25, 18, 10, 240), surf.get_rect(),
+                             border_radius=S(18))
+            pygame.draw.rect(surf, (255, 210, 80, 230), surf.get_rect(),
+                             S(4), border_radius=S(18))
+            surf = surf.convert_alpha()
+            cache[(pw, ph)] = surf
+        return surf
+
     def draw_pause_screen(self):
         w, h = self.screen.get_size()
         self.screen.blit(get_dark(w, h, (20, 14, 8, 170)), (0, 0))
         pw, ph = S(460), S(404)   # раньше 372: нижняя кнопка вылезала за рамку
         px, py = max(S(10), (w - pw) // 2), max(S(10), (h - ph) // 2)
-        panel = pygame.Surface((pw, ph), pygame.SRCALPHA)
-        pygame.draw.rect(panel, (25, 18, 10, 240), panel.get_rect(),
-                         border_radius=S(18))
-        pygame.draw.rect(panel, (255, 210, 80, 230), panel.get_rect(), S(4),
-                         border_radius=S(18))
-        self.screen.blit(panel, (px, py))
+        self.screen.blit(self._pause_panel_surf(pw, ph), (px, py))
         self.draw_centered("ПАУЗА", self.font_big, py + S(52), GOLD)
         bw, bh, gap = S(380), S(56), S(14)
         y0 = py + S(112)
