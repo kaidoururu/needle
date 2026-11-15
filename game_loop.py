@@ -408,4 +408,5 @@ class LoopMixin:
 
 
 if __name__ == "__main__":
+    from game_core import Game
     Game().run()

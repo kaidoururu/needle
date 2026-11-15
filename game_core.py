@@ -51,6 +51,12 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
             self.screen = self.display
         self.clock = pygame.time.Clock()
 
+        # звук (п. 1 плана по звукам): микшер и звуки собираются сразу
+        # после дисплей; недоступное аудио не роняет игру — тихий режим
+        self._audio_ok = False
+        self.sounds = {}
+        self._init_audio()
+
         self.font_big = None
         self.font_mid = None
         self.font_small = None
@@ -91,6 +97,7 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
 
         # новые механики: редкие находки, серия, золотая игла
         self.compass_hint = None
+        self.compass_quadrant = None
         self.energy_time = 0.0
         self.clover_time = 0.0
         self.streak = 0
@@ -162,6 +169,9 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         self.stamina = self.max_stamina
         self.health = self.max_health
 
+        # тестовый звук при старте: если микшер жив, игрок услышит монету
+        self.play("coin", 0.6)
+
 
 
     # ---------- шрифты от масштаба интерфейса (пункт 1) ----------
@@ -189,6 +199,38 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         clear_dark_cache()
 
 
+
+    def _init_audio(self):
+        """П. 1 плана по звукам: инициализация mixer с фолбэком.
+
+        Если аудио на устройстве недоступно или микшер занят — игра не
+        падает, а работает в тихом режиме: sounds пуст, play молчит.
+        Звуки собираются из SOUND_BUILDERS (синтез в game_config.py).
+        """
+        try:
+            pygame.mixer.init(
+                frequency=SOUND_RATE, size=-16, channels=1)
+            for name, builder in SOUND_BUILDERS.items():
+                self.sounds[name] = pygame.mixer.Sound(
+                    buffer=bytes(builder()))
+            self._audio_ok = True
+        except Exception:
+            self._audio_ok = False
+            self.sounds = {}
+
+    def play(self, name, volume=1.0):
+        """Единая точка воспроизведения SFX: play("coin")."""
+        if not self._audio_ok:
+            return
+        try:
+            snd = self.sounds.get(name)
+            if snd is not None:
+                snd.set_volume(
+                    max(0.0, min(1.0, volume * SOUND_VOLUME)))
+                snd.play()
+        except Exception:
+            # сломавшийся микшер не роняет кадр: уходим в тихий режим
+            self._audio_ok = False
 
     def txt(self, string, font, color=TEXT):
         key = (id(font), string, color)
