@@ -68,7 +68,7 @@ class LoopMixin:
                     self.state = "menu"
 
     # ---------- обработка кликов в игре ----------
-    def handle_click(self, pos):
+    def handle_click(self, pos, raw_y=None):
         if self.intro_open:
             # приветствие блокирует все клики, кроме кнопки «Понятно!»
             if self.intro_button.collidepoint(pos):
@@ -181,14 +181,20 @@ class LoopMixin:
             return
 
         if self.bandage_btn.collidepoint(pos):
+            if ON_ANDROID and raw_y is not None:
+                calib_hit(self.bandage_btn, raw_y)
             self.use_bandage()
             return
         if self.antidote_btn.collidepoint(pos):
+            if ON_ANDROID and raw_y is not None:
+                calib_hit(self.antidote_btn, raw_y)
             self.use_antidote()
             return
 
         for name, rect in self.main_buttons.items():
             if rect.collidepoint(pos):
+                if ON_ANDROID and raw_y is not None:
+                    calib_hit(rect, raw_y)
                 if name == "sell":
                     if self.hay > 0:
                         self.sell()
@@ -355,7 +361,7 @@ class LoopMixin:
                     elif self.state == "pause":
                         self.handle_pause_click(pos, raw_y)
                     elif self.intro_open:
-                        self.handle_click(pos)
+                        self.handle_click(pos, raw_y)
                     else:
                         if (not self.won and not self.dead
                                 and not self.tutorial
@@ -371,7 +377,7 @@ class LoopMixin:
                             calib_hit(self.pause_button, raw_y)
                             self.open_pause()
                         else:
-                            self.handle_click(pos)
+                            self.handle_click(pos, raw_y)
                     self.idle_time = 0.0
                     self.idle_hint = None
 
