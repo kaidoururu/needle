@@ -15,9 +15,7 @@ class ScreensMixin:
     # ---------- начальный экран ----------
     def draw_menu_screen(self):
         w, h = self.screen.get_size()
-        overlay = pygame.Surface((w, h), pygame.SRCALPHA)
-        overlay.fill((20, 14, 8, 190))
-        self.screen.blit(overlay, (0, 0))
+        self.screen.blit(get_dark(w, h, (20, 14, 8, 190)), (0, 0))
         cx = w // 2
         self.draw_centered("ИГЛА В СТОГЕ СЕНА", self.font_big,
                            int(h * 0.20), GOLD)
@@ -42,9 +40,7 @@ class ScreensMixin:
     # ---------- меню паузы ----------
     def draw_pause_screen(self):
         w, h = self.screen.get_size()
-        overlay = pygame.Surface((w, h), pygame.SRCALPHA)
-        overlay.fill((20, 14, 8, 170))
-        self.screen.blit(overlay, (0, 0))
+        self.screen.blit(get_dark(w, h, (20, 14, 8, 170)), (0, 0))
         pw, ph = S(460), S(404)   # раньше 372: нижняя кнопка вылезала за рамку
         px, py = max(S(10), (w - pw) // 2), max(S(10), (h - ph) // 2)
         panel = pygame.Surface((pw, ph), pygame.SRCALPHA)
@@ -69,9 +65,7 @@ class ScreensMixin:
     # ---------- экран победы ----------
     def draw_win_screen(self):
         w, h = self.screen.get_size()
-        overlay = pygame.Surface((w, h), pygame.SRCALPHA)
-        overlay.fill((20, 14, 8, 215))
-        self.screen.blit(overlay, (0, 0))
+        self.screen.blit(get_dark(w, h, (20, 14, 8, 215)), (0, 0))
 
         cx = w // 2
         self.draw_centered("ИГОЛКА НАЙДЕНА!",
@@ -116,9 +110,7 @@ class ScreensMixin:
     # ---------- экран смерти ----------
     def draw_death_screen(self):
         w, h = self.screen.get_size()
-        overlay = pygame.Surface((w, h), pygame.SRCALPHA)
-        overlay.fill((60, 10, 10, 225))
-        self.screen.blit(overlay, (0, 0))
+        self.screen.blit(get_dark(w, h, (60, 10, 10, 225)), (0, 0))
 
         cx = w // 2
         self.draw_centered("ВЫ УМЕРЛИ",

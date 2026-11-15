@@ -62,9 +62,9 @@ class ShopMixin:
         top = h - dy
 
         if top > 0:
-            shade = pygame.Surface((w, top), pygame.SRCALPHA)
-            shade.fill((0, 0, 0, min(120, int(120 * self.shop_slide))))
-            self.screen.blit(shade, (0, 0))
+            # r38: шторка из кэша — в покое один и тот же слой
+            alpha = min(120, int(120 * self.shop_slide))
+            self.screen.blit(get_dark(w, top, (0, 0, 0, alpha)), (0, 0))
 
         self.screen.blit(self.shop_surf, (0, top))
 

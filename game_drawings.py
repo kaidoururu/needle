@@ -22,6 +22,7 @@ class DrawingsMixin:
         if img is None:
             img = pygame.Surface((d, d), pygame.SRCALPHA)
             builder(img, d // 2, d // 2, d, None)
+            img = img.convert_alpha()
             cache[key] = img
         px, py = int(cx - d // 2), int(cy - d // 2)
         if alpha is None:
@@ -410,6 +411,7 @@ class DrawingsMixin:
         elif key == "clover":
             self.draw_clover(surf, c, c, s)
 
+        surf = surf.convert_alpha()
         self.icon_cache[cache_key] = surf
         return surf
 

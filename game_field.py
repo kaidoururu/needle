@@ -284,7 +284,8 @@ class FieldMixin:
             self.draw_death_screen()
 
     def draw_compass_highlight(self):
-        """Золотая пульсирующая подсветка четверти стога с иглой."""
+        """Золотая статичная рамка четверти стога с иглой (r30: план r28,
+        точка d — пульсация альфы и толщины убрана, один уровень)."""
         if not self.compass_quadrant or self.won or self.dead:
             return
         north, west = self.compass_quadrant
@@ -292,21 +293,17 @@ class FieldMixin:
         qh = self.field_rect.h / 2
         x0 = self.field_rect.x + (0 if west else qw)
         y0 = self.field_rect.y + (0 if north else qh)
-        p = 0.55 + 0.45 * math.sin(self.time * 5.0)
         size = (max(1, int(qw)), max(1, int(qh)))
         cache = getattr(self, "_compass_ov_cache", None)
         if cache is None:
             cache = self._compass_ov_cache = {}
-        levels = cache.get(size)
-        if levels is None:
-            levels = []
-            for i in range(8):
-                ov = pygame.Surface(size)
-                ov.fill((255, 200, 60))
-                ov.set_alpha(int(60 * (i + 1) / 8))
-                levels.append(ov)
-            cache[size] = levels
-        self.screen.blit(levels[min(7, int(p * 8))], (int(x0), int(y0)))
+        ov = cache.get(size)
+        if ov is None:
+            ov = pygame.Surface(size)
+            ov.fill((255, 200, 60))
+            ov.set_alpha(COMPASS_GLOW_ALPHA)
+            cache[size] = ov
+        self.screen.blit(ov, (int(x0), int(y0)))
         pygame.draw.rect(self.screen, GOLD,
                          (int(x0), int(y0), int(qw), int(qh)),
-                         max(3, int(2 + 4 * p)), border_radius=12)
+                         4, border_radius=12)

@@ -158,11 +158,6 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         # собирается от сохранённого уровня, а не от первого
         self.load_game()
         calib_load()
-        log_trace("геометрия: экран {}, видимая {}, SAFE_TOP={}, SAFE_BOTTOM={}"
-                  .format(self.display.get_size(),
-                          self.screen.get_size(),
-                          SAFE_TOP, SAFE_BOTTOM))
-        self.build_field()
         self.build_ui()
         self.stamina = self.max_stamina
         self.health = self.max_health
@@ -190,6 +185,8 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         self.text_cache = {}
         self.help_surf = None
         self.shop_surf = None
+        self._rot_cache = {}
+        _screen_dark_cache.clear()
 
 
 

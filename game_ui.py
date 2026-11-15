@@ -93,16 +93,13 @@ class UIMixin:
 
 
 
-    def draw_bar(self, bar, ratio, label_text="", pulse=False,
-                 fixed_color=None):
+    def draw_bar(self, bar, ratio, label_text="", fixed_color=None):
+        # r30: параметр pulse и sin-переливание удалены (план r28, точка a):
+        # полоска рисуется постоянным цветом, при низком значении не мигает
         fill_w = int(bar.w * ratio)
 
         if fixed_color is not None:
             r, g, b = fixed_color
-            if pulse and ratio < 0.15:
-                p = 0.5 + 0.5 * math.sin(self.time * 8.0)
-                factor = 0.55 + 0.45 * p
-                r, g, b = int(r * factor), int(g * factor), int(b * factor)
         else:
             if ratio > 0.5:
                 t = (1.0 - ratio) * 2.0
@@ -110,10 +107,6 @@ class UIMixin:
             else:
                 t = ratio * 2.0
                 r, g, b = 255, int(60 + 140 * t), 60
-            if pulse and ratio < 0.15:
-                p = 0.5 + 0.5 * math.sin(self.time * 8.0)
-                r, g, b = (int(120 + (r - 120) * p),
-                           int(30 + (g - 30) * p), 40)
 
         pygame.draw.rect(self.screen, (70, 55, 35), bar, border_radius=5)
         if fill_w > 0:
@@ -141,6 +134,7 @@ class UIMixin:
         if img is None:
             img = pygame.Surface((d, d), pygame.SRCALPHA)
             self._build_coin(img, d // 2, d // 2, d, None)
+            img = img.convert_alpha()
             cache[d] = img
         px, py = int(cx - d // 2), int(cy - d // 2)
         if alpha is None:
@@ -201,7 +195,7 @@ class UIMixin:
 
         self.draw_bar(pygame.Rect(S(10), hud_top + S(38), w - S(20),
                                   S(24)),
-                      self.stamina / self.max_stamina, pulse=True,
+                      self.stamina / self.max_stamina,
                       fixed_color=STAMINA_BLUE, label_text="Силы")
 
         if self.poison_time > 0:
@@ -213,7 +207,7 @@ class UIMixin:
         self.draw_bar(pygame.Rect(S(10), hud_top + S(70), w - S(20),
                                   S(24)),
                       max(0.0, self.health) / self.max_health,
-                      pulse=True, fixed_color=color,
+                      fixed_color=color,
                       label_text=health_label)
 
         self.draw_button(self.main_buttons["sell"],
@@ -229,11 +223,9 @@ class UIMixin:
         if (self.state == "game" and not self.won and not self.dead
                 and not self.tutorial and self.shop_slide <= 0.5
                 and self.any_upgrade_affordable()):
-            p = 0.5 + 0.5 * math.sin(self.time * 6.0)
-            grow = int(S(6) * p)
-            pygame.draw.rect(self.screen, GOLD,
-                             shop_rect.inflate(grow * 2, grow * 2), S(4),
-                             border_radius=12)
+            # r36: постоянная рамка вместо мигания — без анимации
+            self._alpha_frame(shop_rect.inflate(S(12), S(12)), 12, S(4),
+                              SHOP_BTN_ALPHA)
 
         if self.needle_found:
             self.draw_button(self.main_buttons["next"],
@@ -353,13 +345,24 @@ class UIMixin:
                                    (d + 16) // 2, 3)
                 if not hasattr(self, "_ring_cache"):
                     self._ring_cache = {}
+                ring = ring.convert_alpha()
                 self._ring_cache[d] = ring
             self.screen.blit(ring, (int(cx - (d + 16) / 2),
                                     int(cy - (d + 16) / 2)))
             icon = self.icon_cache.get((name, d))
             if icon is None:
                 icon = self.shop_icon(name, d)
-            rot = pygame.transform.rotate(icon, -self.time * 90.0)
+            # r37: поворот кэшируется по ступеням 15 градусов —
+            # transform.rotate больше не создаёт поверхность каждый кадр,
+            # повторный угол той же иконки берётся готовым из кэша.
+            step = int(round((-self.time * 90.0) / 15.0)) % 24
+            key = (id(icon), step)
+            rot = getattr(self, "_rot_cache", {}).get(key)
+            if rot is None:
+                rot = pygame.transform.rotate(icon, step * 15.0)
+                if not hasattr(self, "_rot_cache"):
+                    self._rot_cache = {}
+                self._rot_cache[key] = rot
             self.screen.blit(rot, rot.get_rect(center=(int(cx), int(cy))))
             if frac is not None:
                 rr = d // 2 + S(7)
@@ -436,10 +439,10 @@ class UIMixin:
         if item not in ("bandage", "antidote", "shop"):
             self.tutorial = None
             return
-        overlay = pygame.Surface((w, h), pygame.SRCALPHA)
-        overlay.fill((20, 14, 8, TUT_DARK_ALPHA))
         hole = rect.inflate(S(28), S(28))
-        pygame.draw.rect(overlay, (0, 0, 0, 0), hole, border_radius=12)
+        # r38: слой тьмы с вырезом кэшируется по положению выреза
+        overlay = get_dark(w, h, (20, 14, 8, TUT_DARK_ALPHA),
+                           tag="tut", hole=hole)
         self.screen.blit(overlay, (0, 0))
         # сама кнопка — поверх тьмы
         # тексты уроков объясняют, что произошло и что делать —
@@ -460,12 +463,11 @@ class UIMixin:
             self.draw_button(rect, "Лавка улучшений")
             text = ("Монет накоплено: %d. Откройте лавку — купите "
                     "улучшение на них!" % self.money)
-        # пульсирующая золотая рамка вокруг кнопки
-        p = 0.5 + 0.5 * math.sin(self.time * 6.0)
-        grow = int(S(6) * p)
-        pygame.draw.rect(self.screen, GOLD,
-                         rect.inflate(grow * 2, grow * 2), S(4),
-                         border_radius=12)
+        # золотая рамка вокруг кнопки: две дискретные фазы (r36)
+        ph = int(self.time * 2.0) % 2
+        grow = S(6)  # постоянный отступ стрелки
+        self._alpha_frame(rect.inflate(grow * 2, grow * 2), 12, S(4),
+                          HINT_RING_ALPHA[ph])
         # стрелка и плашка с текстом урока: длинный текст переносится
         # по ширине экрана (w - S(40)), плашка растёт в высоту
         lines = wrap_text(text, self.font_mid, w - S(40))
@@ -491,6 +493,23 @@ class UIMixin:
                              (rect.centerx - S(12), arrow_y),
                              (rect.centerx + S(12), arrow_y)])
 
+    def _alpha_frame(self, rect, radius, width, alpha):
+        # r36: рамка с постоянной альфой из кэша поверхностей —
+        # ни одного выделения памяти в кадре
+        key = (rect.w, rect.h, radius, width)
+        cache = getattr(self, "_frame_cache", None)
+        if cache is None:
+            cache = self._frame_cache = {}
+        surf = cache.get(key)
+        if surf is None:
+            surf = pygame.Surface(rect.size, pygame.SRCALPHA)
+            pygame.draw.rect(surf, GOLD, surf.get_rect(), width,
+                             border_radius=radius)
+            surf = surf.convert_alpha()
+            cache[key] = surf
+        surf.set_alpha(alpha)
+        self.screen.blit(surf, rect)
+
     # ---------- подсказка простоя ----------
 
     def draw_idle_hint(self):
@@ -515,21 +534,17 @@ class UIMixin:
             self.screen.blit(surf,
                              surf.get_rect(center=(w // 2, ty + lh // 2)))
             ty += lh
-        p = 0.5 + 0.5 * math.sin(self.time * 5.0)
+        # две дискретные фазы вместо sin-пульсации (r36)
+        alpha = HINT_RING_ALPHA[int(self.time * 2.0) % 2]
         target = hint.get("target")
         if target is not None:
-            grow = int(S(8) * p)
-            pygame.draw.rect(self.screen, GOLD,
-                             target.inflate(grow * 2, grow * 2), S(4),
-                             border_radius=10)
+            self._alpha_frame(target.inflate(S(16), S(16)), 10, S(4), alpha)
         cell = hint.get("cell")
         if cell is not None:
             x = self.field_rect.x + (cell % self.cols) * self.cw
             yy = self.field_rect.y + (cell // self.cols) * self.ch
             r = pygame.Rect(int(x), int(yy), int(self.cw), int(self.ch))
-            pygame.draw.rect(self.screen, GOLD,
-                             r.inflate(int(S(8) * p), int(S(8) * p)), S(3),
-                             border_radius=4)
+            self._alpha_frame(r.inflate(S(16), S(16)), 4, S(3), alpha)
 
     # ---------- приветствие «КАК ИГРАТЬ» ----------
 
@@ -540,9 +555,7 @@ class UIMixin:
         if not self.intro_open:
             return
         w, h = self.screen.get_size()
-        overlay = pygame.Surface((w, h), pygame.SRCALPHA)
-        overlay.fill((20, 14, 8, 175))
-        self.screen.blit(overlay, (0, 0))
+        self.screen.blit(get_dark(w, h, (20, 14, 8, 175)), (0, 0))
 
         # Брифинг по плану п.20: четыре короткие строки вместо шести.
         # Каждая строка короче ширины панели (~48 знаков) — не переносится.

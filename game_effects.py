@@ -58,6 +58,7 @@ class EffectsMixin:
                              (0, 0, pw, ph), border_radius=18)
             pygame.draw.rect(panel, (255, 210, 80, 200),
                              (0, 0, pw, ph), 4, border_radius=18)
+            panel = panel.convert_alpha()
             cache[pw] = panel
         panel.set_alpha(alpha)
         self.screen.blit(panel, (px, py))
@@ -84,11 +85,21 @@ class EffectsMixin:
         color = GREEN_MSG if n["item"] in ("bandage", "antidote",
                                            "compass", "energy",
                                            "clover") else RED
-        t1 = self.font_big.render(n["title"], True, color)
+        # r34: заголовок и подпись рендерятся ОДИН раз на уведомление,
+        # дальше каждый кадр — только set_alpha + blit (как у сообщений
+        # в r33). Текст за жизнь уведомления не меняется, dict новый на
+        # каждое show_notice — кэш инвалидируется сам.
+        t1 = n.get("_t1")
+        if t1 is None or n.get("_font1") != id(self.font_big):
+            t1 = self.font_big.render(n["title"], True, color)
+            n["_t1"], n["_font1"] = t1, id(self.font_big)
         t1.set_alpha(alpha)
         self.screen.blit(t1, t1.get_rect(center=(w // 2, py + S(178))))
         if n["sub"]:
-            t2 = self.font_mid.render(n["sub"], True, TEXT)
+            t2 = n.get("_t2")
+            if t2 is None or n.get("_font2") != id(self.font_mid):
+                t2 = self.font_mid.render(n["sub"], True, TEXT)
+                n["_t2"], n["_font2"] = t2, id(self.font_mid)
             t2.set_alpha(alpha)
             self.screen.blit(t2, t2.get_rect(center=(w // 2, py + S(226))))
 
@@ -99,25 +110,35 @@ class EffectsMixin:
         y = self.field_rect.top + S(14)
         for m in self.messages:
             alpha = max(0, min(255, int(255 * m["life"] / 1.2)))
-            # длинное сообщение переносится по ширине поля
-            lines = wrap_text(m["text"], self.font_mid,
-                              self.field_rect.width - S(40))
-            pad = S(10)
-            lh = self.font_mid.get_linesize()
-            pill_w = max(self.font_mid.size(ln)[0] for ln in lines) + pad * 2
-            pill_h = lh * len(lines) + pad * 2
-            pill = pygame.Surface((pill_w, pill_h), pygame.SRCALPHA)
-            pygame.draw.rect(pill, MSG_BG + (int(215 * alpha / 255),),
-                             (0, 0, pill_w, pill_h), border_radius=10)
-            px = self.field_rect.centerx - pill_w // 2
-            self.screen.blit(pill, (px, y))
-            ty = y + pad
-            for ln in lines:
-                surf = self.font_mid.render(ln, True, m["color"])
-                surf.set_alpha(alpha)
-                self.screen.blit(surf, (px + pad, ty))
-                ty += lh
-            y += pill_h + S(4)
+            # r33: плашка с текстом собирается ОДИН раз при появлении
+            # сообщения, дальше каждый кадр — только set_alpha + blit.
+            # Прозрачность работает через set_alpha поверх пер-пиксельной:
+            # 215 * alpha / 255 — как в прежней версии, картинка та же.
+            surf = m.get("_surf")
+            if surf is None or m.get("_surf_font") != id(self.font_mid):
+                # длинное сообщение переносится по ширине поля
+                lines = wrap_text(m["text"], self.font_mid,
+                                  self.field_rect.width - S(40))
+                pad = S(10)
+                lh = self.font_mid.get_linesize()
+                pill_w = max(self.font_mid.size(ln)[0]
+                             for ln in lines) + pad * 2
+                pill_h = lh * len(lines) + pad * 2
+                surf = pygame.Surface((pill_w, pill_h), pygame.SRCALPHA)
+                pygame.draw.rect(surf, MSG_BG + (215,),
+                                 (0, 0, pill_w, pill_h), border_radius=10)
+                ty = pad
+                for ln in lines:
+                    ts = self.font_mid.render(ln, True, m["color"])
+                    surf.blit(ts, (pad, ty))
+                    ty += lh
+                surf = surf.convert_alpha()
+                m["_surf"] = surf
+                m["_surf_font"] = id(self.font_mid)
+            surf.set_alpha(alpha)
+            px = self.field_rect.centerx - surf.get_width() // 2
+            self.screen.blit(surf, (px, y))
+            y += surf.get_height() + S(4)
 
     # ---------- экранные вспышки ----------
 
@@ -137,18 +158,18 @@ class EffectsMixin:
                 ov.fill(rgb)
                 cache[key] = ov
             return ov
+        # r30 (план r28, точки b и c): плавное затухание убрано —
+        # укус: полная плотность, пока идёт таймер, затем мгновенно ноль;
+        # растение: две фазы — яркая вспышка на время таймера, затем
+        # стабильная пелена POISON_TINT_ALPHA без переходов
         if self.bite_flash > 0:
-            alpha = int(BITE_FLASH_ALPHA * self.bite_flash)
-            if alpha > 0:
-                ov = ov_for(BITE_RED)
-                ov.set_alpha(alpha)
-                self.screen.blit(ov, (0, 0))
+            ov = ov_for(BITE_RED)
+            ov.set_alpha(BITE_FLASH_ALPHA)
+            self.screen.blit(ov, (0, 0))
         if self.poison_flash > 0:
-            alpha = int(POISON_FLASH_ALPHA * self.poison_flash)
-            if alpha > 0:
-                ov = ov_for(POISON_FLASH)
-                ov.set_alpha(alpha)
-                self.screen.blit(ov, (0, 0))
+            ov = ov_for(POISON_FLASH)
+            ov.set_alpha(POISON_FLASH_ALPHA)
+            self.screen.blit(ov, (0, 0))
         elif self.poison_time > 0:
             ov = ov_for(POISON_FLASH)
             ov.set_alpha(POISON_TINT_ALPHA)
@@ -160,6 +181,8 @@ class EffectsMixin:
             ov.set_alpha(ENERGY_TINT_ALPHA)
             self.screen.blit(ov, (0, 0))
     def update_flashes(self, dt):
+        # таймеры только отсчитывают длительность фазы яркой вспышки,
+        # сама яркость в draw_flashes теперь постоянная (r30)
         if self.bite_flash > 0:
             self.bite_flash = max(0.0, self.bite_flash - FLASH_FADE * dt)
         if self.poison_flash > 0:
@@ -209,27 +232,28 @@ class EffectsMixin:
 
 
     def draw_straws(self):
+        # r35: план r31, п.1 — ноль выделений памяти в кадре. Вместо
+        # SRCALPHA-поверхности на каждую соломинку — затухание цветом:
+        # линия рисуется прямо в screen, цвет интерполируется к усреднённому
+        # фону стога STRAW_FADE_TO (мгновение начала затухания совпадает
+        # со старой альфой 255 * life / (STRAW_LIFE * 0.6)).
+        bg = STRAW_FADE_TO
         for s in self.straws:
-            alpha = max(0, min(255,
-                               int(255 * s["life"] / (STRAW_LIFE * 0.6))))
+            t = max(0.0, min(1.0,
+                             s["life"] / (STRAW_LIFE * 0.6)))
             half = s["len"] / 2
             dx = math.cos(s["ang"]) * half
             dy = math.sin(s["ang"]) * half
-            color = s["color"]
-            if alpha < 255:
-                surf = pygame.Surface(
-                    (int(abs(dx) * 2) + 4, int(abs(dy) * 2) + 4),
-                    pygame.SRCALPHA)
-                cxx = surf.get_width() // 2
-                cyy = surf.get_height() // 2
-                pygame.draw.line(surf, color,
-                                 (cxx - dx, cyy - dy), (cxx + dx, cyy + dy), 3)
-                surf.set_alpha(alpha)
-                self.screen.blit(surf,
-                                 (int(s["x"] - cxx), int(s["y"] - cyy)))
+            c = s["color"]
+            if t < 1.0:
+                k = 1.0 - t
+                color = (int(c[0] + (bg[0] - c[0]) * k),
+                         int(c[1] + (bg[1] - c[1]) * k),
+                         int(c[2] + (bg[2] - c[2]) * k))
             else:
-                pygame.draw.line(self.screen, color,
-                                 (s["x"] - dx, s["y"] - dy),
-                                 (s["x"] + dx, s["y"] + dy), 3)
+                color = c
+            pygame.draw.line(self.screen, color,
+                             (s["x"] - dx, s["y"] - dy),
+                             (s["x"] + dx, s["y"] + dy), 3)
 
     # ---------- экономика ----------

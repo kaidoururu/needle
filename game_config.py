@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
-# BUILD: v5-37 (пункты 1–4 из 5 PLAN.md ЗАВЕРШЕНЫ + фикс безопасной
+# BUILD: v5-38 (план r31 закрыт: r38 — кэш полноэкранных оверлеев,
+# тёмные слои строятся один раз через get_dark из этого файла;
+# чистка кэша — в make_fonts). Предыдущие шаги: (пункты 1–4 из 5 PLAN.md ЗАВЕРШЕНЫ + фикс безопасной
 # зоны по снимку экрана с телефона; горячее исправление r18: SAFE_TOP,
 # SAFE_BOTTOM и wrap_text добавлены фактически — в r17 они остались
 # только в этом комментарии, ядро падало NameError при запуске:
@@ -25,13 +27,22 @@
 # игру до записи в лог; теперь лог пишется первым, печать — под
 # страховкой; (2) log_crash мог упасть на закрытом stderr — оба шага
 # под страховкой; (3) добавлен data_dir (cwd на APK недоступен —
-# сохранение hay_save.json могло молча не работать) и log_trace —
-# метки шагов в crash_log.txt: последняя метка показывает, где игра
-# умерла даже при жёстком падении ниже Python.
+# сохранение hay_save.json могло молча не работать).
 # Горячее исправление r21: смещение тапов вернулось — фактическое
 # соответствие координат события и рисования уточняется самой
-# игрой (автокалибровка по попаданиям в кнопки, tap_calib.json),
-# сырые тапы пишутся в crash_log.txt для точной подстройки.
+# игрой (автокалибровка по попаданиям в кнопки, tap_calib.json).
+# r27: диагностические метки log_trace/log_tap из лога убраны —
+# crash_log.txt теперь содержит только traceback'ы ошибок.
+# r28: PLAN.md дополнен (кнопка «Назад» телефона и план по
+# тормозам: дискретные вспышки без пульсаций); код не менялся.
+# r29 (пункт 2): системная кнопка «Назад» (K_AC_BACK в game_loop.py)
+# ставит паузу и открывает меню паузы, из меню — возврат в игру.
+# r30 (пункт 1): устранение тормозов — полоски без пульсации,
+# вспышки укуса и растения дискретны (яркая фаза на время таймера,
+# затем мгновенно: укус гаснет, растение переходит в стабильную
+# пелену POISON_TINT_ALPHA), компас — статичная рамка с альфой
+# COMPASS_GLOW_ALPHA, лавка и справка открываются мгновенно
+# (SLIDE_SPEED удалён).
 # Исправление r22 (пункт 1 тестирования): лавка мигала, когда
 # ни одно улучшение недоступно для покупки — панель АПТЕЧКА не
 # влезала в лавку (низ 910 при пределе 886), но её цена учитывалась
@@ -52,10 +63,37 @@
 # нижнюю тройку кнопок, бинт и антидот (calib_hit вызывается только
 # при реальном попадании — открытая лавка/справка и туториал калибровку
 # не искажают). Копание не страдало: клетка велика для погрешности.
+# r31: PLAN.md заново наполнен шестью пунктами по тормозам (кэш текста,
+# convert_alpha у кэшей, кэш плашек сообщений и уведомлений, соломинки
+# без выделений памяти, добить пульсации подсказки и подсветки лавки);
+# код игры не менялся.
+# r32 (пункт 2): convert_alpha() у пяти медленных кэшей — находки
+# (_dr_cache) и иконки лавки (icon_cache) в game_drawings.py, монета
+# (_coin_cache) и кольца HUD (_ring_cache) в game_ui.py, панель
+# уведомления (_notice_panel_w) в game_effects.py; blit'ы больше не
+# идут через программный блендинг. shop_surf/help_surf уже были на
+# быстрых .convert(). Пункт 1 вычеркнут: кэш текста работал с r25.
+# r33 (пункт 1): плашки сообщений собираются один раз при появлении
+# (рамка + все строки текста в одной SRCALPHA-поверхности, ключ _surf
+# в словаре сообщения, пересборка при смене шрифта), дальше каждый кадр
+# только set_alpha + blit; прозрачность совпадает с прежней (215*alpha/255).
+# r34 (пункт 1): заголовок и подпись уведомления рендерятся один раз
+# r35: план r31 п.1 — соломинки: затухание цветом вместо
+#       прозрачности, ноль поверхностей в кадре; константа STRAW_FADE_TO
+# на появление (ключи _t1/_t2 в словаре уведомления, пересборка при
+# смене шрифта), дальше каждый кадр только set_alpha + blit.
+# r36 (пункт 2): последние sin-аниматоры в отрисовке убраны —
+#       спотлайт урока и рамка подсказки простоя: две дискретные
+#       фазы HINT_RING_ALPHA, подсветка кнопки лавки — постоянная
+#       рамка SHOP_BTN_ALPHA; рамки с альфой из кэша _frame_cache.
+# r37 (пункт 1): вращение иконок HUD кэшируется по ступеням
+#       15 градусов (_rot_cache в game_ui.py, сброс в make_fonts),
+#       pygame.transform.rotate в кадре не вызывается.
 
 import datetime
 import json
 import os
+import pygame
 import sys
 
 try:
@@ -104,7 +142,7 @@ SAFE_BOTTOM = 75
 # поэтому масштабируемые константы (HUD_H, SHOP_H, ...) при старте
 # НЕ перезаписываются — импортированные копии остались бы старыми.
 # Они остаются базовыми значениями, а через S() проводятся там, где
-# используются: game_field — HUD_H и CELL_*; game_loop — SLIDE_SPEED;
+# используются: game_field — HUD_H и CELL_*;
 # game_shop — SHOP_*; game_help — HELP_H; game_ui — HUD_CHIP_MIN_W.
 UI_SCALE = 1.0
 
@@ -156,6 +194,29 @@ def wrap_text(text, font, max_w):
     return lines or [""]
 
 
+# r38: кэш полноэкранных затемнений — SRCALPHA-слой постоянного размера
+# и цвета строится один раз, дальше только blit. Ноль пересозданий в кадре.
+_screen_dark_cache = {}
+
+
+def get_dark(w, h, color, tag="", hole=None):
+    """Кэшированная поверхность-затемнение w×h цвета color (r, g, b, a).
+
+    hole — прямоугольник, который вырезается из тьмы (урок обучения):
+    передаётся кортежем (x, y, w, h), чтобы ключ кэша оставался хэшируемым.
+    tag разводит одинаковые цвета разных слоёв по разным ключам.
+    """
+    key = (tag, w, h, tuple(color), tuple(hole) if hole is not None else None)
+    surf = _screen_dark_cache.get(key)
+    if surf is None:
+        surf = pygame.Surface((w, h), pygame.SRCALPHA).convert_alpha()
+        surf.fill(color)
+        if hole is not None:
+            pygame.draw.rect(surf, (0, 0, 0, 0), hole, border_radius=12)
+        _screen_dark_cache[key] = surf
+    return surf
+
+
 def touch_pos(pos):
     """Перевести координаты события из полного экрана в видимую область.
 
@@ -178,7 +239,6 @@ def touch_pos(pos):
 TAP_LO = 0.0
 TAP_HI = 300.0
 TAP_OFFSET = None  # вычитаемая величина; пока не измерена — SAFE_TOP
-_TAP_LOGGED = 0
 
 
 def calib_load():
@@ -193,8 +253,6 @@ def calib_load():
         TAP_LO, TAP_HI = float(d["lo"]), float(d["hi"])
         if TAP_HI - TAP_LO <= 300.0:
             TAP_OFFSET = (TAP_LO + TAP_HI) / 2.0
-            log_trace("калибровка тапов загружена: "
-                      "{:.1f}".format(TAP_OFFSET))
     except Exception:
         pass
 
@@ -217,23 +275,12 @@ def calib_hit(rect, raw_y):
     est = (lo + hi) / 2.0
     if TAP_OFFSET is None or abs(est - TAP_OFFSET) >= 1.0:
         TAP_OFFSET = est
-        log_trace("калибровка тапов: [{:.1f}; {:.1f}], сдвиг {:.1f}"
-                  .format(lo, hi, est))
         try:
             with open(os.path.join(data_dir(), "tap_calib.json"),
                       "w", encoding="utf-8") as f:
                 json.dump({"lo": lo, "hi": hi}, f)
         except Exception:
             pass
-
-
-def log_tap(raw_y):
-    """Диагностика первых тапов: сырая вертикаль события в лог."""
-    global _TAP_LOGGED
-    if _TAP_LOGGED >= 40:
-        return
-    _TAP_LOGGED += 1
-    log_trace("тап {}: y={}".format(_TAP_LOGGED, raw_y))
 
 
 STAMINA_BASE = 20
@@ -245,7 +292,6 @@ NEEDLE_BONUS_BASE = 300
 SHOP_H = 1000          # высота лавки: 6 панелей + шапка
                        # (1000: панель АПТЕЧКА имеет низ 910, предел 916 — влезает)
 HELP_H = 1000   # высота справки: две страницы + кнопки навигации
-SLIDE_SPEED = 4.0
 SHOP_PANEL_H = 120
 SHOP_GAP = 10
 SHOP_TOP = 140
@@ -264,6 +310,9 @@ TUT_DELAY = 1.0
 STRAW_MIN = 3
 STRAW_MAX = 6
 STRAW_LIFE = 0.7
+# усреднённый фон стога (между выкопанной клеткой и недуганной):
+# к нему соломинки растворяются цветом вместо прозрачности (r35)
+STRAW_FADE_TO = (160, 122, 44)
 STRAW_SPEED = 190
 STRAW_GRAVITY = 260
 
@@ -384,6 +433,9 @@ IDLE_HINT_AFTER = 6.0       # сек бездействия до подсказ�
 BITE_FLASH_ALPHA = 185
 POISON_FLASH_ALPHA = 185
 POISON_TINT_ALPHA = 60
+COMPASS_GLOW_ALPHA = 40   # r30: единственный уровень подсветки компаса
+SHOP_BTN_ALPHA = 180      # r36: постоянная подсветка кнопки лавки
+HINT_RING_ALPHA = (200, 90)  # r36: две фазы рамок урока и подсказки простоя
 ENERGY_TINT_ALPHA = 70
 FLASH_FADE = 0.85
 
@@ -482,27 +534,6 @@ def _log_places():
         places.append(downloads)
     places.append(data_dir())
     return places
-
-
-def log_trace(step):
-    """Метка прогресса в crash_log.txt: последняя метка показывает, на
-    каком шаге игра умерла, даже если падение случилось ниже Python
-    (segfault в SDL/pygame в лог не попадает). Пишется немного:
-    старт, меню-клик, первый игровой кадр."""
-    block = "[trace] {} {}\n".format(
-        datetime.datetime.now().strftime("%H:%M:%S"), step)
-    for place in _log_places():
-        path = os.path.join(place, LOG_FILE)
-        try:
-            with open(path, "a", encoding="utf-8") as f:
-                f.write(block)
-            return
-        except OSError:
-            continue
-    try:
-        sys.stderr.write(block)
-    except Exception:
-        pass
 
 
 def log_crash(text):

@@ -7,6 +7,12 @@ import pygame
 
 from game_config import *
 
+# системная кнопка «Назад» на Android — клавиша K_AC_BACK (SDL AC Back);
+# запасное значение SDLK_AC_BACK из SDL на случай старого pygame,
+# где константы нет. Это единственная клавиша в цикле: тач остаётся
+# единственным способом управления (пункт 3 старого плана)
+K_AC_BACK = getattr(pygame, "K_AC_BACK", 1073742094)
+
 
 class LoopMixin:
     """Главный цикл: состояния меню/игры/паузы, события, клики"""
@@ -19,14 +25,11 @@ class LoopMixin:
                 if ON_ANDROID and raw_y is not None:
                     calib_hit(rect, raw_y)
                 if name == "continue":
-                    log_trace("меню: продолжить")
                     self.intro_open = True
                     self.state = "game"
                     return None
                 if name == "new":
-                    log_trace("меню: новая игра — строим поле")
                     self.start_new_game()
-                    log_trace("меню: новая игра готова")
                     self.intro_open = True
                     self.state = "game"
                     return None
@@ -294,22 +297,11 @@ class LoopMixin:
                     if self.notice["life"] <= 0:
                         self.notice = None
 
-                if self.shop_slide < self.shop_target:
-                    self.shop_slide = min(self.shop_target,
-                                          self.shop_slide +
-                                          Sf(SLIDE_SPEED) * dt)
-                elif self.shop_slide > self.shop_target:
-                    self.shop_slide = max(self.shop_target,
-                                          self.shop_slide -
-                                          Sf(SLIDE_SPEED) * dt)
-                if self.help_slide < self.help_target:
-                    self.help_slide = min(self.help_target,
-                                          self.help_slide +
-                                          Sf(SLIDE_SPEED) * dt)
-                elif self.help_slide > self.help_target:
-                    self.help_slide = max(self.help_target,
-                                          self.help_slide -
-                                          Sf(SLIDE_SPEED) * dt)
+                # r30 (план r28, точка e): плавный выезд панелей убран
+                # как источник тормозов — лавка и справка открываются
+                # и закрываются мгновенно
+                self.shop_slide = self.shop_target
+                self.help_slide = self.help_target
 
                 # отложенные уроки (пункт 10): ловушка ставит урок в
                 # очередь, подсветка открывается через TUT_DELAY после
@@ -344,12 +336,21 @@ class LoopMixin:
                     if self.state != "menu":
                         self.save_game()
                     running = False
+                elif (event.type == pygame.KEYDOWN
+                      and event.key == K_AC_BACK):
+                    # системная кнопка «Назад» (пункт 2 плана): из игры —
+                    # пауза с меню паузы, из меню паузы — возврат в игру
+                    if self.state == "pause":
+                        self.state = "game"
+                        self.idle_time = 0.0
+                        self.idle_hint = None
+                    elif self.state == "game":
+                        self.open_pause()
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     pos = getattr(event, "pos", None)
                     if pos is None:
                         continue
                     raw_y = pos[1]
-                    log_tap(raw_y)
                     # безопасная зона: тап приходит в координатах полного
                     # экрана, рисование идёт в subsurface со смещением
                     # SAFE_TOP — переводим в координаты видимой области;
@@ -403,7 +404,6 @@ class LoopMixin:
             if self.state != "menu" and not getattr(
                     self, "_frame_traced", False):
                 self._frame_traced = True
-                log_trace("первый игровой кадр отрисован")
         pygame.quit()
 
 

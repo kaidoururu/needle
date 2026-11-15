@@ -9,7 +9,7 @@
 import sys
 import traceback
 
-from game_config import log_crash, log_trace, ON_ANDROID
+from game_config import log_crash, ON_ANDROID
 
 
 if __name__ == "__main__":
@@ -18,7 +18,6 @@ if __name__ == "__main__":
         print("Игра только для Android")
         sys.exit(0)
     try:
-        log_trace("старт игры")
         from game_core import Game
         Game().run()
     except SystemExit:

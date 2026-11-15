@@ -151,9 +151,9 @@ class HelpMixin:
         top = h - dy
 
         if top > 0:
-            shade = pygame.Surface((w, top), pygame.SRCALPHA)
-            shade.fill((0, 0, 0, min(140, int(140 * self.help_slide))))
-            self.screen.blit(shade, (0, 0))
+            # r38: шторка из кэша — в покое один и тот же слой
+            alpha = min(140, int(140 * self.help_slide))
+            self.screen.blit(get_dark(w, top, (0, 0, 0, alpha)), (0, 0))
 
         self.screen.blit(self.help_surf, (0, top))
         # кнопки закрытия нет: «?» или тап по стогу
