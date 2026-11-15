@@ -186,7 +186,7 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         self.help_surf = None
         self.shop_surf = None
         self._rot_cache = {}
-        _screen_dark_cache.clear()
+        clear_dark_cache()
 
 
 
