@@ -83,14 +83,14 @@ class EconomyMixin:
         return False
 
     def sell(self):
-        # урок «Лавка» больше не запускается отсюда (пункт 13а):
-        # единый триггер — в главном цикле (game_loop.run), он
-        # срабатывает, как только копилка доросла до первого улучшения,
-        # независимо от того, откуда пришли монеты.
+        # r52: п. 3 плана по звукам — продажа озвучивается каскадом
+        # монет. Функция вызывается только при непустом сене
+        # (проверка self.hay > 0 стоит в game_loop.handle_click).
         if self.hay > 0:
             self.money += self.hay_value
             self.hay = 0
             self.hay_value = 0
+            self.play("sell")
             self.save_game()
 
 
@@ -138,8 +138,13 @@ class EconomyMixin:
                 self.bnd_lvl += 1
                 bought = True
         if bought:
+            # r52: покупка со звоном кассы
             self.shop_surf = None
+            self.play("cash")
             self.save_game()
+        else:
+            # монет не хватило: глухой писк отказа (error из r41)
+            self.play("error", 0.9)
 
     # ---------- геометрия интерфейса ----------
 

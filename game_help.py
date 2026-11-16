@@ -170,10 +170,12 @@ class HelpMixin:
     # ---------- выдвижная лавка ----------
 
     def open_help(self):
+        self.play("open_panel")
         self.help_target = 1.0
         self.shop_target = 0.0
         self.help_page = 0        # справка всегда открывается с первой
         self.help_surf = None
 
     def close_help(self):
+        self.play("close_panel")
         self.help_target = 0.0

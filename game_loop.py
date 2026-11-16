@@ -25,7 +25,11 @@ class LoopMixin:
                 if ON_ANDROID and raw_y is not None:
                     calib_hit(rect, raw_y)
                 if name == "continue":
-                    self.intro_open = True
+                    # r54: продолжаем игру — туториал не показываем:
+                    # ни приветствие, ни подсказки простоя
+                    self.intro_open = False
+                    self.tut_skip = True
+                    self.idle_hint = None
                     self.state = "game"
                     return None
                 if name == "new":
@@ -194,7 +198,11 @@ class LoopMixin:
         противоядие. Игра не замирает; любой тап гасит подсказку
         (run обнуляет idle_time и idle_hint), следующий шаг — после
         нового простоя. Подсказка не показывается на экранах
-        победы/смерти и при открытых лавке/справке."""
+        победы/смерти и при открытых лавке/справке.
+        При продолжении сохранённой игры обучение отключено
+        целиком (tut_skip, r54)."""
+        if self.tut_skip:
+            return
         if self.idle_time < IDLE_HINT_AFTER:
             return
         if self.idle_hint is not None or self.won or self.dead:

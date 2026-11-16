@@ -164,6 +164,11 @@ class FieldMixin:
         self.poison_time = 0.0
         self.straws = []
         self.field_dirty = True
+        # перезапуск уровня — новая игра: обучение с начала (r54)
+        self.tut_step = 0
+        self.tut_skip = False
+        self.idle_time = 0.0
+        self.idle_hint = None
 
 
 

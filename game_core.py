@@ -137,8 +137,12 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         self.pause_buttons = {}
         self.has_save = False
 
-        # обучение простоями (v5-48): шаги цикла TUT_STEPS по очереди
+        # обучение простоями (v5-48): шаги цикла TUT_STEPS по очереди.
+        # tut_skip: True, когда вошли через «Продолжить» — обучение
+        # (приветствие и подсказки простоя) показывается только
+        # в новой игре (r54)
         self.tut_step = 0
+        self.tut_skip = False
         self.mercy_used = False      # милость судьбы: раз за уровень
         self.idle_time = 0.0
         self.idle_hint = None
@@ -153,9 +157,13 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         self.death_buttons = {}
         # сохранение грузится ДО постройки поля (пункт 9): уровень и
         # улучшения берутся от hay_save.json, и стог сразу
-        # собирается от сохранённого уровня, а не от первого
+        # собирается от сохранённого уровня, а не от первого.
+        # r54: build_field здесь ОБЯЗАТЕЛЕН — без него при
+        # «Продолжить» поле оставалось пустым (cells=[], cw=0.0)
+        # и первый клик по стогу падал ZeroDivisionError
         self.load_game()
         calib_load()
+        self.build_field()
         self.build_ui()
         self.stamina = self.max_stamina
         self.health = self.max_health
@@ -269,6 +277,7 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         self.notice = None
         self.straws = []
         self.tut_step = 0
+        self.tut_skip = False
         self.mercy_used = False
         self.idle_time = 0.0
         self.idle_hint = None

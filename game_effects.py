@@ -38,7 +38,6 @@ class EffectsMixin:
         n = self.notice
         if not n:
             return
-        alpha = max(0, min(255, int(255 * min(1.0, n["life"] / 0.5))))
         w, h = self.screen.get_size()
         ph = S(260)
         # ширина по заголовку: длинные плашки ("ЯДОВИТОЕ РАСТЕНИЕ!")
@@ -60,47 +59,47 @@ class EffectsMixin:
                              (0, 0, pw, ph), 4, border_radius=18)
             panel = panel.convert_alpha()
             cache[pw] = panel
-        panel.set_alpha(alpha)
         self.screen.blit(panel, (px, py))
 
         icon_cx = px + pw // 2
         icon_cy = py + S(92)
         if n["item"] == "stone":
-            self.draw_stone(self.screen, icon_cx, icon_cy, S(110), alpha)
+            self.draw_stone(self.screen, icon_cx, icon_cy, S(110), None)
         elif n["item"] == "plant":
-            self.draw_plant(self.screen, icon_cx, icon_cy, S(110), alpha)
+            self.draw_plant(self.screen, icon_cx, icon_cy, S(110), None)
         elif n["item"] == "animal":
-            self.draw_animal(self.screen, icon_cx, icon_cy, S(110), alpha)
+            self.draw_animal(self.screen, icon_cx, icon_cy, S(110), None)
         elif n["item"] == "bandage":
-            self.draw_bandage(self.screen, icon_cx, icon_cy, S(110), alpha)
+            self.draw_bandage(self.screen, icon_cx, icon_cy, S(110), None)
         elif n["item"] == "antidote":
-            self.draw_antidote(self.screen, icon_cx, icon_cy, S(110), alpha)
+            self.draw_antidote(self.screen, icon_cx, icon_cy, S(110), None)
         elif n["item"] == "compass":
-            self.draw_compass(self.screen, icon_cx, icon_cy, S(110), alpha)
+            self.draw_compass(self.screen, icon_cx, icon_cy, S(110), None)
         elif n["item"] == "energy":
-            self.draw_energy(self.screen, icon_cx, icon_cy, S(110), alpha)
+            self.draw_energy(self.screen, icon_cx, icon_cy, S(110), None)
         elif n["item"] == "clover":
-            self.draw_clover(self.screen, icon_cx, icon_cy, S(110), alpha)
+            self.draw_clover(self.screen, icon_cx, icon_cy, S(110), None)
 
         color = GREEN_MSG if n["item"] in ("bandage", "antidote",
                                            "compass", "energy",
                                            "clover") else RED
-        # r34: заголовок и подпись рендерятся ОДИН раз на уведомление,
-        # дальше каждый кадр — только set_alpha + blit (как у сообщений
-        # в r33). Текст за жизнь уведомления не меняется, dict новый на
-        # каждое show_notice — кэш инвалидируется сам.
+        # r34+r53: заголовок и подпись рендерятся ОДИН раз на
+        # уведомление, дальше каждый кадр — только blit. r53: плавная
+        # альфа убрана (срочная правка производительности) — плашка
+        # и иконка появляются и исчезают мгновенно, пер-кадровой
+        # установки альфы больше нет. Текст за жизнь уведомления не
+        # меняется, dict новый на каждое show_notice — кэш
+        # инвалидируется сам.
         t1 = n.get("_t1")
         if t1 is None or n.get("_font1") != id(self.font_big):
             t1 = self.font_big.render(n["title"], True, color)
             n["_t1"], n["_font1"] = t1, id(self.font_big)
-        t1.set_alpha(alpha)
         self.screen.blit(t1, t1.get_rect(center=(w // 2, py + S(178))))
         if n["sub"]:
             t2 = n.get("_t2")
             if t2 is None or n.get("_font2") != id(self.font_mid):
                 t2 = self.font_mid.render(n["sub"], True, TEXT)
                 n["_t2"], n["_font2"] = t2, id(self.font_mid)
-            t2.set_alpha(alpha)
             self.screen.blit(t2, t2.get_rect(center=(w // 2, py + S(226))))
 
 
@@ -109,11 +108,11 @@ class EffectsMixin:
         """Сообщения на тёмной плашке — читаются на любом фоне стога."""
         y = self.field_rect.top + S(14)
         for m in self.messages:
-            alpha = max(0, min(255, int(255 * m["life"] / 1.2)))
-            # r33: плашка с текстом собирается ОДИН раз при появлении
-            # сообщения, дальше каждый кадр — только set_alpha + blit.
-            # Прозрачность работает через set_alpha поверх пер-пиксельной:
-            # 215 * alpha / 255 — как в прежней версии, картинка та же.
+            # r33+r53: плашка с текстом собирается ОДИН раз при
+            # появлении сообщения, дальше каждый кадр — только blit.
+            # r53: плавная альфа убрана (срочная правка
+            # производительности) — сообщения появляются и исчезают
+            # мгновенно, пер-кадровой установки альфы больше нет.
             surf = m.get("_surf")
             if surf is None or m.get("_surf_font") != id(self.font_mid):
                 # длинное сообщение переносится по ширине поля
@@ -135,7 +134,6 @@ class EffectsMixin:
                 surf = surf.convert_alpha()
                 m["_surf"] = surf
                 m["_surf_font"] = id(self.font_mid)
-            surf.set_alpha(alpha)
             px = self.field_rect.centerx - surf.get_width() // 2
             self.screen.blit(surf, (px, y))
             y += surf.get_height() + S(4)

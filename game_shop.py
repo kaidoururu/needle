@@ -102,10 +102,12 @@ class ShopMixin:
 
 
     def open_shop(self):
+        self.play("open_panel")
         self.shop_target = 1.0
         self.help_target = 0.0
 
 
 
     def close_shop(self):
+        self.play("close_panel")
         self.shop_target = 0.0

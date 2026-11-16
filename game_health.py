@@ -66,14 +66,17 @@ class HealthMixin:
     def use_bandage(self):
         if self.bandages <= 0:
             self.add_message("Бинтов нет — ищите в стоге", RED)
+            self.play("error")
             return
         if self.health >= self.max_health:
             self.add_message("Здоровье полное — бинт не нужен", GREEN_MSG)
+            self.play("error")
             return
         self.bandages -= 1
         self.health = min(self.max_health,
                           self.health + self.bandage_heal())
         self.add_message("Бинт использован", GREEN_MSG)
+        self.play("bandage")
         self.save_game()
 
 
@@ -81,13 +84,16 @@ class HealthMixin:
     def use_antidote(self):
         if self.antidotes <= 0:
             self.add_message("Противоядий нет — ищите в стоге", RED)
+            self.play("error")
             return
         if self.poison_time <= 0:
             self.add_message("Вы не отравлены — противоядие не нужно",
                              GREEN_MSG)
+            self.play("error")
             return
         self.antidotes -= 1
         self.poison_time = 0.0
         self.add_message("Противоядие выпито — отравление снято!",
                          GREEN_MSG)
+        self.play("antidote")
         self.save_game()

@@ -1,19 +1,15 @@
 # -*- coding: utf-8 -*-
-# BUILD: v5-48 (r51: упрощение визуала по просьбе пользователя.
-# Удалены ВСЕ полноэкранные пелены (game_effects.py): красная вспышка
-# укуса, фиолетовые вспышка и пелена яда, заодно жёлтая тонировка
-# энергетика — главный источник тормозов при эффектах. Удалён
-# спотлайт-обучение (тьма с вырезом, game_ui.py): обучение теперь
-# идёт простоями — после 6 секунд без тапов подсвечивается по
-# очереди один шаг из TUT_STEPS (сено, продажа, бинт, лавка,
-# противоядие) с обучающим текстом на золотой плашке; любой тап
-# гасит подсказку, следующий шаг — после нового простоя. Флаги
-# tut_bandage_done/tut_antidote_done/tut_shop_done удалены — старые
-# сохранения совместимы, лишние ключи игнорируются.
-# История: r47 — RLEACCEL на пеленах (план производительности
-# П. 1–4 закрыт); r49 — добавлен бенчмарк game_perf_test.py;
-# r50 — тестовая сборка с main.py-запускателем; r51 — упрощение
-# визуала (пелены и спотлайт удалены), бенчмарк снят с проекта.
+# BUILD: v5-53 (r56: финальный проход — план звуков завершён.
+# PLAN.md переписан в завершённый вид: раздел задач закрыт, все пункты
+# плана отмечены выполненными с версиями, в которых они легли. README.md
+# переведён в релизный вид. Код не менялся: звуков в игре 10 (click,
+# coin, error, fanfare, sell, cash, bandage, antidote, open_panel,
+# close_panel) — от тапов до кассового звона и вжуха панелей.
+# ПРЕДЫДУЩИЕ ШАГИ: r55 — звуки здоровья и лавки (bandage, antidote,
+# open_panel, close_panel); r54 — фикс продолжения (build_field в
+# __init__, туториал скрыт при «Продолжить»); r53 — мгновенные таблички;
+# r52 — звуки экономики (sell, cash) и фикс array.array (с r41
+# звуки молчали — TypeError глотался в _init_audio).
 
 
 import array
@@ -165,7 +161,7 @@ def _sfx_tone(freq, dur, vol=1.0, shape="sine", decay=2.0):
     array('h') — 16-bit mono в частоте SOUND_RATE.
     """
     n = int(SOUND_RATE * dur)
-    arr = array("h", bytes(2 * n))
+    arr = array.array("h", bytes(2 * n))
     step = 2.0 * math.pi * freq / SOUND_RATE
     attack = max(1, int(0.003 * SOUND_RATE))
     for i in range(n):
@@ -182,7 +178,7 @@ def _sfx_tone(freq, dur, vol=1.0, shape="sine", decay=2.0):
 
 def _sfx_seq(*chunks):
     """Склейка тонов подряд: сложные звуки собираются из простых."""
-    out = array("h")
+    out = array.array("h")
     for chunk in chunks:
         out.extend(chunk)
     return out
@@ -200,11 +196,62 @@ def _sfx_coin():
     )
 
 
+def _sfx_sell():
+    # шуршание горсти монет при продаже: каскад коротких динь-нот
+    # с чуть убывающей громкостью — «монеты сыплются в копилку»
+    parts = []
+    for i, freq in enumerate((1568, 1319, 1760, 1245, 1568, 1047)):
+        parts.append(_sfx_tone(freq, 0.05, 0.65 - i * 0.05, decay=2.5))
+    return _sfx_seq(*parts)
+
+
+def _sfx_cash():
+    # кассовый звон при покупке: яркий двойной «динь» колокольчика
+    # и короткий глухой удар выдвижного ящика в конце
+    return _sfx_seq(
+        _sfx_tone(1568, 0.09, 0.7, decay=1.8),
+        _sfx_tone(2093, 0.15, 0.7, decay=2.0),
+        _sfx_tone(140, 0.08, 0.5, shape="square", decay=2.5),
+    )
+
+
 def _sfx_error():
     # глухой писк при отказе: денег не хватает, бинтов нет и т. п.
     return _sfx_seq(
         _sfx_tone(160, 0.09, 0.8, shape="square"),
         _sfx_tone(120, 0.14, 0.7, shape="square", decay=1.5),
+    )
+
+def _sfx_bandage():
+    # мягкий шелест перевязки: короткий шумовой свист + затихающий шорох
+    return _sfx_seq(
+        _sfx_tone(0, 0.10, 0.45, shape="noise", decay=1.6),
+        _sfx_tone(0, 0.18, 0.30, shape="noise", decay=2.6),
+    )
+
+
+def _sfx_antidote():
+    # булькание противоядия: два восходящих «блюпа» с водяной окраской
+    return _sfx_seq(
+        _sfx_tone(220, 0.10, 0.65, decay=1.2),
+        _sfx_tone(330, 0.09, 0.55, decay=1.2),
+        _sfx_tone(440, 0.16, 0.60, decay=2.2),
+    )
+
+
+def _sfx_open_panel():
+    # «вжух» выдвижения панели лавки/справки: восходящий шорох
+    return _sfx_seq(
+        _sfx_tone(0, 0.07, 0.35, shape="noise", decay=1.2),
+        _sfx_tone(660, 0.07, 0.30, decay=2.0),
+    )
+
+
+def _sfx_close_panel():
+    # обратный «вжух» пониже: закрытие панели
+    return _sfx_seq(
+        _sfx_tone(440, 0.06, 0.30, decay=2.0),
+        _sfx_tone(0, 0.07, 0.30, shape="noise", decay=1.2),
     )
 
 
@@ -221,7 +268,13 @@ def _sfx_fanfare():
 SOUND_BUILDERS = {
     "click": _sfx_click,
     "coin": _sfx_coin,
+    "sell": _sfx_sell,
+    "cash": _sfx_cash,
     "error": _sfx_error,
+    "bandage": _sfx_bandage,
+    "antidote": _sfx_antidote,
+    "open_panel": _sfx_open_panel,
+    "close_panel": _sfx_close_panel,
     "fanfare": _sfx_fanfare,
 }
 
