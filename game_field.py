@@ -162,8 +162,6 @@ class FieldMixin:
         self.digs = 0
         self.stamina = self.max_stamina
         self.poison_time = 0.0
-        self.bite_flash = 0.0
-        self.poison_flash = 0.0
         self.straws = []
         self.field_dirty = True
 
@@ -181,8 +179,6 @@ class FieldMixin:
         self.stamina = self.max_stamina
         self.health = self.max_health
         self.poison_time = 0.0
-        self.bite_flash = 0.0
-        self.poison_flash = 0.0
         self.energy_time = 0.0  # энергетик не переносится на новый уровень
         self.clover_time = 0.0  # клевер не переносится на новый уровень
         self.build_field()
@@ -276,7 +272,6 @@ class FieldMixin:
         self.draw_straws()
         self.draw_messages()
         self.draw_notice()
-        self.draw_tutorial()
         self.draw_idle_hint()
         if self.won:
             self.draw_win_screen()

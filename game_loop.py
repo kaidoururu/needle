@@ -45,8 +45,6 @@ class LoopMixin:
         self.state = "pause"
         self.shop_target = 0.0
         self.help_target = 0.0
-        self.tutorial = None
-        self.pending_tutorial = {}
         self.idle_hint = None
 
 
@@ -66,7 +64,6 @@ class LoopMixin:
                     self.state = "game"
                 elif name == "menu":
                     self.save_game()
-                    self.tutorial = None
                     self.idle_hint = None
                     self.state = "menu"
 
@@ -79,22 +76,6 @@ class LoopMixin:
                 self.idle_time = 0.0
                 self.idle_hint = None
             return
-        if self.tutorial:
-            # во время урока клик работает только в подсвеченную кнопку
-            rect = self.tutorial_target()
-            if rect is not None and rect.collidepoint(pos):
-                item = self.tutorial["item"]
-                if item == "bandage":
-                    self.use_bandage()
-                elif item == "antidote":
-                    self.use_antidote()
-                elif item == "shop":
-                    self.tut_shop_done = True
-                    self.tutorial = None
-                    self.save_game()
-                    self.open_shop()
-            return
-
         if self.dead:
             for name, rect in self.death_buttons.items():
                 if rect.collidepoint(pos):
@@ -121,10 +102,6 @@ class LoopMixin:
                         self.digs = 0
                         self.straws = []
                         self.dead = False
-                        self.bite_flash = 0.0
-                        self.poison_flash = 0.0
-                        self.tutorial = None
-                        self.pending_tutorial = {}
                         self.save_game()
                         self.add_message(
                             "Вы возродились. Потеряно %d монет, сено "
@@ -210,41 +187,34 @@ class LoopMixin:
                 return
         self.dig_at(pos)
 
-    # ---------- подсказка простоя ----------
+    # ---------- обучение простоями (v5-48) ----------
     def update_idle_hint(self):
+        """После IDLE_HINT_AFTER секунд без тапов показать один шаг
+        обучения из TUT_STEPS по порядку: сено, продажа, бинт, лавка,
+        противоядие. Игра не замирает; любой тап гасит подсказку
+        (run обнуляет idle_time и idle_hint), следующий шаг — после
+        нового простоя. Подсказка не показывается на экранах
+        победы/смерти и при открытых лавке/справке."""
         if self.idle_time < IDLE_HINT_AFTER:
             return
-        if self.idle_hint is not None:
-            return
-        if self.won or self.dead or self.tutorial:
+        if self.idle_hint is not None or self.won or self.dead:
             return
         if self.shop_slide > 0.5 or self.help_slide > 0.5:
             return
-        if self.needle_found:
-            self.idle_hint = {
-                "text": "Нажмите «Уровень %d», чтобы идти дальше"
-                        % (self.level + 1),
-                "target": self.main_buttons["next"].copy(),
-                "cell": None}
-        elif self.poison_time > 0 and self.antidotes > 0:
-            self.idle_hint = {
-                "text": "Вы отравлены! Нажмите на флакон",
-                "target": self.antidote_btn.copy(), "cell": None}
-        elif self.health < self.max_health * 0.4 and self.bandages > 0:
-            self.idle_hint = {
-                "text": "Мало здоровья! Нажмите на бинт",
-                "target": self.bandage_btn.copy(), "cell": None}
-        elif self.hay_value > 0:
-            self.idle_hint = {
-                "text": "Продайте сено, чтобы получить монеты",
-                "target": self.main_buttons["sell"].copy(),
-                "cell": None}
-        else:
+        text, target = TUT_STEPS[self.tut_step % len(TUT_STEPS)]
+        self.tut_step += 1
+        hint = {"text": text, "target": None, "cell": None}
+        if target == "cell":
             undug = [i for i, c in enumerate(self.cells) if not c["dug"]]
             if undug:
-                i = random.choice(undug)
-                self.idle_hint = {"text": "Копайте здесь!",
-                                  "target": None, "cell": i}
+                hint["cell"] = random.choice(undug)
+        elif target == "bandage":
+            hint["target"] = self.bandage_btn.copy()
+        elif target == "antidote":
+            hint["target"] = self.antidote_btn.copy()
+        else:  # "sell" / "shop"
+            hint["target"] = self.main_buttons[target].copy()
+        self.idle_hint = hint
 
     # ---------- главный цикл ----------
     def run(self):
@@ -253,8 +223,7 @@ class LoopMixin:
             dt = self.clock.tick(FPS) / 1000.0
             self.time += dt
 
-            if (self.state == "game" and not self.intro_open
-                and not self.tutorial):
+            if self.state == "game" and not self.intro_open:
                 if self.stamina < self.max_stamina:
                     self.stamina = min(self.max_stamina,
                                        self.stamina +
@@ -285,7 +254,6 @@ class LoopMixin:
 
                 self.grant_mercy()
 
-                self.update_flashes(dt)
                 self.update_straws(dt)
 
                 for m in self.messages:
@@ -302,31 +270,6 @@ class LoopMixin:
                 # и закрываются мгновенно
                 self.shop_slide = self.shop_target
                 self.help_slide = self.help_target
-
-                # отложенные уроки (пункт 10): ловушка ставит урок в
-                # очередь, подсветка открывается через TUT_DELAY после
-                # плашки «Укус зверя!» / «Отравление!»
-                if self.pending_tutorial:
-                    self.update_pending_tutorial()
-
-                # урок «Лавка» (пункт 13а): единый триггер — как только
-                # копилка доросла до первого улучшения. Раньше урок
-                # запускался только из sell() и терялся, если монеты
-                # пришли не с продажи (бонус за иглу, серия рывков,
-                # награда за уровень) или сено продали уже после
-                # находки иглы. Условия: урок не пройден, не пауза
-                # (иначе блок не выполняется), не экраны смерти/победы,
-                # нет другого урока и очереди уроков, лавка и справка
-                # закрыты — тогда запускаем спотлайт.
-                if (not self.tut_shop_done
-                        and self.money >= TUT_SHOP_MIN_MONEY
-                        and not self.won and not self.dead
-                        and not self.pending_tutorial
-                        and self.shop_slide < 0.5
-                        and self.help_slide < 0.5):
-                    self.tut_shop_done = True
-                    self.save_game()
-                    self.start_tutorial("shop")
 
                 self.idle_time += dt
                 self.update_idle_hint()
@@ -365,7 +308,6 @@ class LoopMixin:
                         self.handle_click(pos, raw_y)
                     else:
                         if (not self.won and not self.dead
-                                and not self.tutorial
                                 and self.help_button.collidepoint(pos)):
                             calib_hit(self.help_button, raw_y)
                             if self.help_target > 0.5:
@@ -373,7 +315,6 @@ class LoopMixin:
                             else:
                                 self.open_help()
                         elif (not self.won and not self.dead
-                                and not self.tutorial
                                 and self.pause_button.collidepoint(pos)):
                             calib_hit(self.pause_button, raw_y)
                             self.open_pause()
@@ -387,15 +328,13 @@ class LoopMixin:
                 self.draw_menu_screen()
             else:
                 self.draw_field()
-                self.draw_screen_effects()
                 self.draw_hud()
                 self.draw_bonus_icons()
                 self.draw_shop()
                 self.draw_help_panel()
-                self.draw_tutorial()
                 self.draw_idle_hint()
                 self.draw_intro()
-                if not self.won and not self.dead and not self.tutorial:
+                if not self.won and not self.dead:
                     self.draw_help_button()
                     self.draw_pause_button()
                 if self.state == "pause":

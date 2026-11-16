@@ -74,9 +74,6 @@ class HealthMixin:
         self.health = min(self.max_health,
                           self.health + self.bandage_heal())
         self.add_message("Бинт использован", GREEN_MSG)
-        self.tut_bandage_done = True
-        if self.tutorial and self.tutorial.get("item") == "bandage":
-            self.tutorial = None
         self.save_game()
 
 
@@ -93,7 +90,4 @@ class HealthMixin:
         self.poison_time = 0.0
         self.add_message("Противоядие выпито — отравление снято!",
                          GREEN_MSG)
-        self.tut_antidote_done = True
-        if self.tutorial and self.tutorial.get("item") == "antidote":
-            self.tutorial = None
         self.save_game()

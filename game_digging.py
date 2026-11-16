@@ -37,12 +37,6 @@ class DiggingMixin:
                 self.notice["sub"] = "Лопата и так минимальная"
         elif item == "plant":
             self.poison_time = self.poison_duration()
-            self.poison_flash = 1.0
-            if (not getattr(self, "tut_antidote_done", False)
-                    and self.antidotes > 0):
-                # урок в очередь с задержкой (пункт 10): сначала игрок
-                # секунду видит плашку «Отравление!», потом подсветку
-                self.pending_tutorial["antidote"] = self.time + TUT_DELAY
             self.show_notice(item)
             self.notice["sub"] = "Отравление! Здоровье тает"
             self.add_message("Ядовитое растение! Здоровье тает", PURPLE_MSG)
@@ -50,7 +44,6 @@ class DiggingMixin:
             old = self.health
             dmg = self.animal_damage()
             self.health -= dmg
-            self.bite_flash = 1.0
             self.play("error", 0.7)
             self.show_notice(item)
             new_h = max(0, self.health)
@@ -62,11 +55,6 @@ class DiggingMixin:
             if self.health <= 0:
                 self.health = 0
                 self.dead = True
-            if (not getattr(self, "tut_bandage_done", False)
-                    and self.bandages > 0 and self.health > 0):
-                # урок в очередь с задержкой (пункт 10): сначала игрок
-                # секунду видит плашку «Укус зверя!», потом подсветку
-                self.pending_tutorial["bandage"] = self.time + TUT_DELAY
         elif item == "bandage":
             cap = self.bandage_cap()
             if self.bandages < cap:

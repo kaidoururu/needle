@@ -103,10 +103,6 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         self.streak = 0
         self.golden_needle = False
 
-        # вспышки экрана: плотность 0..1, затухают со временем
-        self.bite_flash = 0.0
-        self.poison_flash = 0.0
-
         self.messages = []
         self.notice = None
         self.straws = []
@@ -131,7 +127,6 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         self._dr_cache = {}
         self._alpha_cache = {}
         self._compass_ov_cache = {}
-        self._fx_cache = {}
         self._ring_cache = {}
         self._coin_cache = {}
         self._notice_panel = None
@@ -142,13 +137,9 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         self.pause_buttons = {}
         self.has_save = False
 
-        # обучение и подсказки простоя
-        self.tut_bandage_done = False
-        self.tut_antidote_done = False
-        self.tut_shop_done = False
+        # обучение простоями (v5-48): шаги цикла TUT_STEPS по очереди
+        self.tut_step = 0
         self.mercy_used = False      # милость судьбы: раз за уровень
-        self.tutorial = None
-        self.pending_tutorial = {}   # очередь отложенных уроков (п. 10)
         self.idle_time = 0.0
         self.idle_hint = None
 
@@ -160,8 +151,8 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         self.shop_buttons = {}
         self.win_buttons = {}
         self.death_buttons = {}
-        # сохранение грузится ДО постройки поля (пункт 9): уровень,
-        # уроки и улучшения берутся от hay_save.json, и стог сразу
+        # сохранение грузится ДО постройки поля (пункт 9): уровень и
+        # улучшения берутся от hay_save.json, и стог сразу
         # собирается от сохранённого уровня, а не от первого
         self.load_game()
         calib_load()
@@ -274,17 +265,11 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         self.dead = False
         self.needle_found = False
         self.digs = 0
-        self.bite_flash = 0.0
-        self.poison_flash = 0.0
         self.messages = []
         self.notice = None
         self.straws = []
-        self.tut_bandage_done = False
-        self.tut_antidote_done = False
-        self.tut_shop_done = False
+        self.tut_step = 0
         self.mercy_used = False
-        self.tutorial = None
-        self.pending_tutorial = {}
         self.idle_time = 0.0
         self.idle_hint = None
         self.build_field()

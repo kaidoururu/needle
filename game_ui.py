@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Интерфейс: HUD, кнопки, полосы здоровья и сил, монеты,
-# крутящиеся значки бонусов, обучение и подсказка простоя
+# крутящиеся значки бонусов, подсказка простоя (обучение)
 
 import math
 import random
@@ -216,12 +216,11 @@ class UIMixin:
         shop_rect = self.main_buttons["shop"]
         self.draw_button(shop_rect, "Лавка улучшений")
         # подсветка лавки (пункт 8): когда денег хватает хотя бы на одно
-        # улучшение, кнопка мигает золотой рамкой — тем же языком, что
-        # уроки обучения и подсказка простоя. Во время урока рамку не
-        # рисуем (у спотлайта своя), под открытой лавкой и на экранах
-        # победы/смерти подсветка тоже не нужна.
+        # улучшение, кнопка подсвечивается золотой рамкой — тем же
+        # языком, что и подсказка простоя. Под открытой лавкой и на
+        # экранах победы/смерти подсветка не нужна.
         if (self.state == "game" and not self.won and not self.dead
-                and not self.tutorial and self.shop_slide <= 0.5
+                and self.shop_slide <= 0.5
                 and self.any_upgrade_affordable()):
             # r36: постоянная рамка вместо мигания — без анимации
             self._alpha_frame(shop_rect.inflate(S(12), S(12)), 12, S(4),
@@ -391,111 +390,13 @@ class UIMixin:
                     arc_pos = arc.get_rect(center=(int(cx), int(cy)))
                     self.screen.blit(arc, arc_pos)
 
-    # ---------- обучение: спотлайт (кнопка поверх тьмы) ----------
-
-    def tutorial_target(self):
-        """Кнопка текущего урока обучения (или None)."""
-        if not self.tutorial:
-            return None
-        item = self.tutorial.get("item")
-        if item == "bandage":
-            return self.bandage_btn
-        if item == "antidote":
-            return self.antidote_btn
-        if item == "shop":
-            return self.main_buttons["shop"]
-        return None
-
-    def start_tutorial(self, name):
-        """Включить урок: подсветить кнопку, заморозить игру,
-        погасить подсказку простоя."""
-        self.tutorial = {"item": name}
-        self.idle_hint = None
-        self.idle_time = 0.0
-
-    def update_pending_tutorial(self):
-        """Отложенные уроки (пункт 10): ловушка ставит урок в очередь
-        с задержкой TUT_DELAY, чтобы игрок успел увидеть плашку
-        («Укус зверя!» / «Отравление!») до затемнения экрана. Урок
-        запускается, только если условия ещё в силе: игрок жив, урок
-        не пройден, лекарство в кармане, а для противоядия яд ещё
-        действует. Пока открыт другой урок — очередь ждёт."""
-        if self.won or self.dead:
-            self.pending_tutorial = {}
-            return
-        if self.tutorial:
-            return
-        now = self.time
-        for item in sorted(self.pending_tutorial,
-                           key=lambda k: self.pending_tutorial[k]):
-            if now < self.pending_tutorial[item]:
-                continue
-            del self.pending_tutorial[item]
-            if item == "bandage":
-                ok = not self.tut_bandage_done and self.bandages > 0
-            elif item == "antidote":
-                ok = (not self.tut_antidote_done and self.antidotes > 0
-                      and self.poison_time > 0)
-            else:
-                ok = False
-            if ok:
-                self.start_tutorial(item)
-                break
-
-    def draw_tutorial(self):
-        """Спотлайт-обучение: экран накрыт тьмой с «вырезанным» светлым
-        пятном вокруг кнопки урока. Кнопка перерисовывается поверх тьмы,
-        вокруг неё пульсирует золотая рамка, сверху стрелка и плашка
-        с текстом урока."""
-        if not self.tutorial or self.won or self.dead:
-            return
-        rect = self.tutorial_target()
-        if rect is None:
-            return
-        w, h = self.screen.get_size()
-        item = self.tutorial.get("item")
-        # страховка: неизвестный урок снимаем до отрисовки тьмы
-        if item not in ("bandage", "antidote", "shop"):
-            self.tutorial = None
-            return
-        hole = rect.inflate(S(28), S(28))
-        # r38: слой тьмы с вырезом кэшируется по положению выреза
-        overlay = get_dark(w, h, (20, 14, 8, TUT_DARK_ALPHA),
-                           tag="tut", hole=hole)
-        self.screen.blit(overlay, (0, 0))
-        # сама кнопка — поверх тьмы
-        # тексты уроков объясняют, что произошло и что делать —
-        # см. PLAN.md пункт 7
-        if item == "bandage":
-            # кнопка во время урока всегда рисуется активной
-            self.draw_pill_button(rect, "bandage", True,
-                                  "%d/%d" % (self.bandages,
-                                             self.bandage_cap()))
-            text = "Вас укусил зверь! Нажмите бинт — он восстановит здоровье."
-        elif item == "antidote":
-            self.draw_pill_button(rect, "antidote", True,
-                                  "%d/%d" % (self.antidotes,
-                                             self.antidote_cap()))
-            text = ("Вы отравились растением! Нажмите противоядие — "
-                    "оно снимет отравление.")
-        else:  # item == "shop"
-            self.draw_button(rect, "Лавка улучшений")
-            text = ("Монет накоплено: %d. Откройте лавку — купите "
-                    "улучшение на них!" % self.money)
-        # золотая рамка вокруг кнопки: две дискретные фазы (r36)
-        ph = int(self.time * 2.0) % 2
-        grow = S(6)  # постоянный отступ стрелки
-        self._alpha_frame(rect.inflate(grow * 2, grow * 2), 12, S(4),
-                          HINT_RING_ALPHA[ph])
-        # П.1 r44: плашка урока из кэша _gold_pill — один blit в кадре
-        pill = self._gold_pill(text)
-        y = self.field_rect.top + S(110)
-        self.screen.blit(pill, pill.get_rect(center=(w // 2, y)))
-        arrow_y = rect.top - S(34) - grow
-        pygame.draw.polygon(self.screen, GOLD,
-                            [(rect.centerx, rect.top - S(10)),
-                             (rect.centerx - S(12), arrow_y),
-                             (rect.centerx + S(12), arrow_y)])
+    # ---------- обучение простоями (v5-48) ----------
+    # Спотлайт-обучение удалено: тьма с вырезом, перерисовка
+    # кнопки поверх тьмы и стрелка ушли вместе с полноэкранными
+    # заливками. Обучение теперь рисует draw_idle_hint: золотая
+    # рамка вокруг цели и плашка с текстом из _gold_pill. Шаги и
+    # их порядок — TUT_STEPS в game_config.py, цикл —
+    # update_idle_hint в game_loop.py.
 
     def _gold_pill(self, text):
         """П.1 r44: плашка с золотым текстом собирается один раз

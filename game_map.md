@@ -30,6 +30,6 @@ main.py -> game_core.py (Game)
    -> `build_field` (game_field, от сохранённого уровня) -> `build_ui` (game_ui)
 2. `run` (game_loop) крутит цикл: события -> `handle_click` -> `dig_at` (game_digging)
 3. `dig_at` -> `resolve_items` -> `trigger_item`: укусы/отравление (game_health),
-   вспышки и соломинки (game_effects), находки рисует game_drawings
+   соломинки и таблички находок (game_effects), находки рисует game_drawings
 4. Продажа и покупки: game_economy + game_shop; подсказки: game_help
 5. Уровни: `next_level` (game_field); финалы: game_screens

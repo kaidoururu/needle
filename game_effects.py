@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Эффекты: сообщения, таблички находок, вспышки, соломинки
+# Эффекты: сообщения, таблички находок, соломинки
 
 import math
 import random
@@ -9,7 +9,7 @@ from game_config import *
 
 
 class EffectsMixin:
-    """Эффекты: сообщения, таблички находок, вспышки, соломинки"""
+    """Эффекты: сообщения, таблички находок, соломинки"""
 
 
     # ---------- сообщения и таблички ----------
@@ -141,61 +141,16 @@ class EffectsMixin:
             y += surf.get_height() + S(4)
 
     # ---------- экранные вспышки ----------
-
-
-
-    # ---------- экранные вспышки ----------
-    def draw_screen_effects(self):
-        w, h = self.screen.get_size()
-        cache = getattr(self, "_fx_cache", None)
-        if cache is None:
-            cache = self._fx_cache = {}
-        def ov_for(rgb):
-            key = (w, h, rgb)
-            ov = cache.get(key)
-            if ov is None:
-                ov = pygame.Surface((w, h))
-                ov.fill(rgb)
-                cache[key] = ov
-            return ov
-        # r47 (план производительности, П.4): set_alpha пелен получает
-        # pygame.RLEACCEL — blit сплошного полноэкранного слоя с общей
-        # альфой идёт по быстрому пути SDL. Визуально идентично.
-        # r30 (план r28, точки b и c): плавное затухание убрано —
-        # укус: полная плотность, пока идёт таймер, затем мгновенно ноль;
-        # растение: две фазы — яркая вспышка на время таймера, затем
-        # стабильная пелена POISON_TINT_ALPHA без переходов
-        if self.bite_flash > 0:
-            ov = ov_for(BITE_RED)
-            ov.set_alpha(BITE_FLASH_ALPHA, pygame.RLEACCEL)
-            self.screen.blit(ov, (0, 0))
-        if self.poison_flash > 0:
-            ov = ov_for(POISON_FLASH)
-            ov.set_alpha(POISON_FLASH_ALPHA, pygame.RLEACCEL)
-            self.screen.blit(ov, (0, 0))
-        elif self.poison_time > 0:
-            ov = ov_for(POISON_FLASH)
-            ov.set_alpha(POISON_TINT_ALPHA, pygame.RLEACCEL)
-            self.screen.blit(ov, (0, 0))
-        # энергетик: жёлтая тонировка поля — та же техника,
-        # отдельной веткой, чтобы обе заливки накладывались
-        if self.energy_time > 0:
-            ov = ov_for(ENERGY_TINT)
-            ov.set_alpha(ENERGY_TINT_ALPHA, pygame.RLEACCEL)
-            self.screen.blit(ov, (0, 0))
-    def update_flashes(self, dt):
-        # таймеры только отсчитывают длительность фазы яркой вспышки,
-        # сама яркость в draw_flashes теперь постоянная (r30)
-        if self.bite_flash > 0:
-            self.bite_flash = max(0.0, self.bite_flash - FLASH_FADE * dt)
-        if self.poison_flash > 0:
-            self.poison_flash = max(0.0, self.poison_flash - FLASH_FADE * dt)
+    # r51 (v5-48): полноэкранные пелены удалены по просьбе
+    # пользователя: красная вспышка укуса, фиолетовые вспышка и
+    # пелена яда, заодно жёлтая тонировка энергетика — они были
+    # главным источником тормозов при эффектах. Сигналы остаются:
+    # плашки «Укус зверя!» / «Отравление!» и цветные сообщения.
+    # Обе функции эффектов заливок больше не существуют, вызовы в
+    # game_loop/game_field сняты.
 
     # ---------- соломинки от копания ----------
 
-
-
-    # ---------- соломинки от копания ----------
     def spawn_straws(self, cell_indices):
         for i in cell_indices:
             x = self.field_rect.x + (i % self.cols) * self.cw + self.cw / 2
