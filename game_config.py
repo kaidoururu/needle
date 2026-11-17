@@ -1,11 +1,17 @@
 # -*- coding: utf-8 -*-
-# BUILD: v5-53 (r56: финальный проход — план звуков завершён.
-# PLAN.md переписан в завершённый вид: раздел задач закрыт, все пункты
-# плана отмечены выполненными с версиями, в которых они легли. README.md
-# переведён в релизный вид. Код не менялся: звуков в игре 10 (click,
-# coin, error, fanfare, sell, cash, bandage, antidote, open_panel,
-# close_panel) — от тапов до кассового звона и вжуха панелей.
-# ПРЕДЫДУЩИЕ ШАГИ: r55 — звуки здоровья и лавки (bandage, antidote,
+# BUILD: v5-54 (r57: звуки событий копания — переделка звуковой части.
+# Новые строители в SOUND_BUILDERS: dig (рывок копания: глухой удар
+# лопаты и шелест выброшенного сена), stone (глухой стук, хруст и низкий
+# металлический звон по камню), bite (щелчок и низкий рык укуса зверя),
+# poison (два нисходящих «воя» и шипение отравления). Вызовы play() в
+# game_digging.py переведены на новые звуки: рывок — dig вместо click,
+# укус — bite вместо error; камень и растение озвучены впервые. Убран
+# двойной error при ловушке (trigger_item + resolve_items) — один звук
+# на событие. Движок дополнен шумовым и свип-синтезом: _sfx_noise
+# (белый шум с огибающей и однополюсным фильтром) и _sfx_sweep (тон с
+# линейной перестройкой частоты). Итого звуков в игре 14.
+# ПРЕДЫДУЩИЕ ШАГИ: r56 — финальный проход: план звуков завершён,
+# документация в релизном виде; r55 — звуки здоровья и лавки (bandage, antidote,
 # open_panel, close_panel); r54 — фикс продолжения (build_field в
 # __init__, туториал скрыт при «Продолжить»); r53 — мгновенные таблички;
 # r52 — звуки экономики (sell, cash) и фикс array.array (с r41
@@ -184,6 +190,41 @@ def _sfx_seq(*chunks):
     return out
 
 
+def _sfx_noise(dur, vol=1.0, decay=2.0, lp=0.3):
+    """Шумовой импульс: огибающая как у тона + однополюсный фильтр.
+
+    lp — коэффициент сглаживания (0..1): чем меньше, тем гуще и
+    «низкочастотнее» шум; 1.0 — чистый белый шорох.
+    """
+    n = int(SOUND_RATE * dur)
+    arr = array.array("h", bytes(2 * n))
+    attack = max(1, int(0.003 * SOUND_RATE))
+    y = 0.0
+    for i in range(n):
+        env = min(1.0, i / attack) * (1.0 - i / n) ** decay
+        y += lp * (random.random() * 2.0 - 1.0 - y)
+        arr[i] = int(y * env * vol * 32767)
+    return arr
+
+
+def _sfx_sweep(f0, f1, dur, vol=1.0, shape="sine", decay=2.0):
+    """Тон с линейной перестройкой частоты от f0 к f1 за dur секунд."""
+    n = int(SOUND_RATE * dur)
+    arr = array.array("h", bytes(2 * n))
+    attack = max(1, int(0.003 * SOUND_RATE))
+    phase = 0.0
+    for i in range(n):
+        f = f0 + (f1 - f0) * i / n
+        phase += 2.0 * math.pi * f / SOUND_RATE
+        env = min(1.0, i / attack) * (1.0 - i / n) ** decay
+        if shape == "sine":
+            v = math.sin(phase)
+        else:
+            v = 1.0 if math.sin(phase) > 0.0 else -1.0
+        arr[i] = int(v * env * vol * 32767)
+    return arr
+
+
 def _sfx_click():
     return _sfx_tone(880, 0.05, 0.7, decay=3.0)
 
@@ -263,6 +304,45 @@ def _sfx_fanfare():
     ])
 
 
+def _sfx_dig():
+    # рывок копания: глухой удар лопаты и короткий шелест выброшенного
+    # сена — вместо прежнего безликого «пика»
+    return _sfx_seq(
+        _sfx_tone(75, 0.06, 0.8, shape="square", decay=2.2),
+        _sfx_noise(0.05, 0.35, decay=1.8, lp=0.6),
+        _sfx_noise(0.12, 0.25, decay=2.6, lp=0.25),
+    )
+
+
+def _sfx_stone():
+    # камень в стоге: глухой стук, короткий хруст и низкий «дзыньк»
+    # металла о камень с затухающим звоном
+    return _sfx_seq(
+        _sfx_tone(90, 0.10, 0.85, shape="square", decay=2.4),
+        _sfx_noise(0.05, 0.30, decay=2.0, lp=0.7),
+        _sfx_tone(1150, 0.22, 0.30, decay=3.5),
+        _sfx_tone(1710, 0.14, 0.18, decay=3.5),
+    )
+
+
+def _sfx_bite():
+    # укус зверя: резкий щелчок челюстей и низкий рык с раскатом
+    return _sfx_seq(
+        _sfx_noise(0.03, 0.70, decay=3.0, lp=0.8),
+        _sfx_sweep(130, 70, 0.22, 0.75, shape="square", decay=1.4),
+        _sfx_noise(0.10, 0.25, decay=2.0, lp=0.15),
+    )
+
+
+def _sfx_poison():
+    # отравление: два нисходящих «воя» и шипение, тающее в тишину
+    return _sfx_seq(
+        _sfx_sweep(660, 290, 0.28, 0.55, decay=1.3),
+        _sfx_sweep(480, 210, 0.30, 0.45, decay=1.5),
+        _sfx_noise(0.22, 0.30, decay=2.4, lp=0.5),
+    )
+
+
 # имя звука -> функция-сборщик буфера. Новые звуки (пп. 2–5 плана)
 # добавляются сюда одной строкой: builder в словарь, play("имя") в коде.
 SOUND_BUILDERS = {
@@ -276,6 +356,10 @@ SOUND_BUILDERS = {
     "open_panel": _sfx_open_panel,
     "close_panel": _sfx_close_panel,
     "fanfare": _sfx_fanfare,
+    "dig": _sfx_dig,
+    "stone": _sfx_stone,
+    "bite": _sfx_bite,
+    "poison": _sfx_poison,
 }
 
 
