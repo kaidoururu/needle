@@ -55,7 +55,8 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         # после дисплей; недоступное аудио не роняет игру — тихий режим
         self._audio_ok = False
         self.sounds = {}
-        self._init_audio()
+        self.sound_on = True   # r58: настройка вкл/выкл звука; до
+        self._init_audio()     # load_game() — потом восстановится
 
         self.font_big = None
         self.font_mid = None
@@ -130,6 +131,9 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         self._ring_cache = {}
         self._coin_cache = {}
         self._notice_panel = None
+        # r64 (П.4а): общий кэш заголовков плашек (наполняется
+        # prewarm_notices, сбрасывается в make_fonts)
+        self._notice_title_cache = {}
 
         # состояния: меню, игра, пауза
         self.state = "menu"
@@ -165,11 +169,15 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         calib_load()
         self.build_field()
         self.build_ui()
+        # r64 (П.4а): подогрев кэшей плашек до первого кадра.
+        # Сбой подогрева не роняет старт: draw_notice откатится
+        # к ленивому построению из кэша
+        try:
+            self.prewarm_notices()
+        except Exception:
+            self._notice_title_cache = {}
         self.stamina = self.max_stamina
         self.health = self.max_health
-
-        # тестовый звук при старте: если микшер жив, игрок услышит монету
-        self.play("coin", 0.6)
 
 
 
@@ -199,6 +207,8 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         # П.2 r45: чистка кэшей панелей приветствия и паузы
         self._intro_cache = {}
         self._pause_panel = {}
+        # r64 (П.4а): кэш заголовков плашек зависит от шрифтов
+        self._notice_title_cache = {}
         # П.3 r46: чистка кэша дуг прогресса бонусов
         self._arc_cache = {}
         clear_dark_cache()
@@ -215,17 +225,19 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         try:
             pygame.mixer.init(
                 frequency=SOUND_RATE, size=-16, channels=1)
-            for name, builder in SOUND_BUILDERS.items():
-                self.sounds[name] = pygame.mixer.Sound(
-                    buffer=bytes(builder()))
+            pygame.mixer.set_num_channels(8)  # r63: предсказуемое
+            # число голосов при частых звуках (копание россыпью и т.п.),
+            # по умолчанию SDL даёт 8 каналов — фиксируем явно
+            from game_sounds import load_sounds
+            self.sounds = load_sounds()
             self._audio_ok = True
         except Exception:
             self._audio_ok = False
             self.sounds = {}
 
     def play(self, name, volume=1.0):
-        """Единая точка воспроизведения SFX: play("coin")."""
-        if not self._audio_ok:
+        """Единая точка воспроизведения SFX: play("имя_звука")."""
+        if not self._audio_ok or not self.sound_on:
             return
         try:
             snd = self.sounds.get(name)
@@ -236,6 +248,17 @@ class Game(SaveMixin, FieldMixin, HealthMixin, EffectsMixin, EconomyMixin,
         except Exception:
             # сломавшийся микшер не роняет кадр: уходим в тихий режим
             self._audio_ok = False
+
+    def toggle_sound(self):
+        """r58: переключение звука значком динамика и кнопкой паузы.
+
+        Настройка живёт в hay_save.json: переживает перезапуск.
+        При включении — короткий «клик» подтверждения; при выключении
+        тишина (пикать в момент отказа от звука было бы странно)."""
+        self.sound_on = not self.sound_on
+        self.save_game()
+        if self.sound_on:
+            self.play("ui_tick")
 
     def txt(self, string, font, color=TEXT):
         key = (id(font), string, color)

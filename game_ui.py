@@ -31,6 +31,9 @@ class UIMixin:
                                        S(58), S(58))
         self.pause_button = pygame.Rect(w - S(370), hud_top + S(96),
                                         S(58), S(58))
+        # r58: значок динамика — слева от «II», тап переключает звук
+        self.sound_button = pygame.Rect(w - S(440), hud_top + S(96),
+                                        S(58), S(58))
         self.intro_button = pygame.Rect(0, 0, 0, 0)
 
         self.shop_panel_h = min(S(SHOP_H), h)
@@ -297,6 +300,32 @@ class UIMixin:
 
     # ---------- кнопка паузы ----------
 
+    def draw_sound_button(self):
+        """r58: значок динамика. Вкл — волны, выкл — перечёркнут."""
+        rect = self.sound_button
+        hovered = rect.collidepoint(touch_pos(pygame.mouse.get_pos()))
+        color = BTN_HOVER if hovered else BTN
+        pygame.draw.rect(self.screen, color, rect, border_radius=10)
+        pygame.draw.rect(self.screen, (30, 20, 10), rect, 2,
+                         border_radius=10)
+        cx, cy = rect.center
+        col = (30, 20, 10)
+        body = pygame.Rect(cx - S(10), cy - S(5), S(7), S(10))
+        cone = [(cx - S(4), cy), (cx + S(4), cy - S(9)),
+                (cx + S(4), cy + S(9))]
+        pygame.draw.rect(self.screen, col, body)
+        pygame.draw.polygon(self.screen, col, cone)
+        if self.sound_on:
+            for r in (S(7), S(12)):
+                pygame.draw.arc(self.screen, col,
+                                (cx + S(2) - r, cy - r, 2 * r, 2 * r),
+                                -0.85, 0.85, 2)
+        else:
+            pygame.draw.line(self.screen, RED, (cx + S(6), cy - S(6)),
+                             (cx + S(14), cy + S(6)), S(3))
+            pygame.draw.line(self.screen, RED, (cx + S(14), cy - S(6)),
+                             (cx + S(6), cy + S(6)), S(3))
+
     def draw_pause_button(self):
         rect = self.pause_button
         hovered = rect.collidepoint(touch_pos(pygame.mouse.get_pos()))
@@ -321,8 +350,9 @@ class UIMixin:
             icons.append(("clover", self.clover_time / CLOVER_TIME))
         if not icons:
             return
-        # значки в HUD: слева от кнопки паузы «II», по центру ряда кнопок
-        pb = self.pause_button
+        # значки в HUD: слева от значка динамика (r58 занял место перед
+        # «II»), по центру ряда кнопок
+        pb = getattr(self, "sound_button", None) or self.pause_button
         d = S(52)
         # если слева от паузы не хватает места — уменьшаем значки
         while d > S(28):

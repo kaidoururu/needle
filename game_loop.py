@@ -47,6 +47,7 @@ class LoopMixin:
         if self.won or self.dead:
             return
         self.state = "pause"
+        self.play("open_panel")
         self.shop_target = 0.0
         self.help_target = 0.0
         self.idle_hint = None
@@ -59,6 +60,7 @@ class LoopMixin:
                 if ON_ANDROID and raw_y is not None:
                     calib_hit(rect, raw_y)
                 if name == "continue":
+                    self.play("close_panel")
                     self.state = "game"
                 elif name == "restart":
                     self.restart()
@@ -70,6 +72,8 @@ class LoopMixin:
                     self.save_game()
                     self.idle_hint = None
                     self.state = "menu"
+                elif name == "sound":
+                    self.toggle_sound()
 
     # ---------- обработка кликов в игре ----------
     def handle_click(self, pos, raw_y=None):
@@ -292,6 +296,7 @@ class LoopMixin:
                     # системная кнопка «Назад» (пункт 2 плана): из игры —
                     # пауза с меню паузы, из меню паузы — возврат в игру
                     if self.state == "pause":
+                        self.play("close_panel")
                         self.state = "game"
                         self.idle_time = 0.0
                         self.idle_hint = None
@@ -323,6 +328,10 @@ class LoopMixin:
                             else:
                                 self.open_help()
                         elif (not self.won and not self.dead
+                                and self.sound_button.collidepoint(pos)):
+                            calib_hit(self.sound_button, raw_y)
+                            self.toggle_sound()
+                        elif (not self.won and not self.dead
                                 and self.pause_button.collidepoint(pos)):
                             calib_hit(self.pause_button, raw_y)
                             self.open_pause()
@@ -344,6 +353,7 @@ class LoopMixin:
                 self.draw_intro()
                 if not self.won and not self.dead:
                     self.draw_help_button()
+                    self.draw_sound_button()
                     self.draw_pause_button()
                 if self.state == "pause":
                     self.draw_pause_screen()

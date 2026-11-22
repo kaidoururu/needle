@@ -33,6 +33,7 @@ class SaveMixin:
             "max_stamina": self.max_stamina,
             "max_health": self.max_health,
             "mercy_used": self.mercy_used,
+            "sound_on": self.sound_on,
         }
         try:
             with open(SAVE_FILE, "w", encoding="utf-8") as f:
@@ -68,5 +69,6 @@ class SaveMixin:
             self.max_stamina = float(data.get("max_stamina", STAMINA_BASE))
             self.max_health = float(data.get("max_health", HEALTH_BASE))
             self.mercy_used = bool(data.get("mercy_used", False))
+            self.sound_on = bool(data.get("sound_on", True))
         except (TypeError, ValueError):
             pass

@@ -59,7 +59,7 @@ class ScreensMixin:
     def draw_pause_screen(self):
         w, h = self.screen.get_size()
         self.screen.blit(get_dark(w, h, (20, 14, 8, 170)), (0, 0))
-        pw, ph = S(460), S(404)   # раньше 372: нижняя кнопка вылезала за рамку
+        pw, ph = S(460), S(478)   # r58: пятая кнопка (звук) — панель выше
         px, py = max(S(10), (w - pw) // 2), max(S(10), (h - ph) // 2)
         self.screen.blit(self._pause_panel_surf(pw, ph), (px, py))
         self.draw_centered("ПАУЗА", self.font_big, py + S(52), GOLD)
@@ -68,7 +68,8 @@ class ScreensMixin:
         names = [("continue", "Продолжить"),
                  ("restart", "Рестарт уровня"),
                  ("new", "Начать новую игру"),
-                 ("menu", "Выход в меню")]
+                 ("menu", "Выход в меню"),
+                 ("sound", "Звук: вкл" if self.sound_on else "Звук: выкл")]
         self.pause_buttons = {}
         for i, (key, text) in enumerate(names):
             r = pygame.Rect(px + (pw - bw) // 2, y0 + i * (bh + gap), bw, bh)

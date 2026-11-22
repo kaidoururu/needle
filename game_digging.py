@@ -14,8 +14,8 @@ class DiggingMixin:
 
     # ---------- ловушки ----------
     def trigger_item(self, item):
-        if item not in ("stone", "plant", "animal"):
-            self.play("coin", 0.5)
+        # r62: общий «coin» убран — у каждого полезного предмета свой
+        # звук подбора (см. ветки ниже); ловушки уже озвучены сами.
         if item == "stone":
             self.play("stone")
             if self.shovel >= STONE_IMMUNE_LVL and self.dig_side() >= 7:
@@ -58,6 +58,7 @@ class DiggingMixin:
                 self.health = 0
                 self.dead = True
         elif item == "bandage":
+            self.play("pick_bandage")
             cap = self.bandage_cap()
             if self.bandages < cap:
                 self.bandages += 1
@@ -67,6 +68,7 @@ class DiggingMixin:
                 self.show_notice(item)
                 self.notice["sub"] = "Карман полон — бинт потерян"
         elif item == "antidote":
+            self.play("pick_antidote")
             cap = self.antidote_cap()
             if self.antidotes < cap:
                 self.antidotes += 1
@@ -76,6 +78,7 @@ class DiggingMixin:
                 self.show_notice(item)
                 self.notice["sub"] = "Аптечка полна — противоядие потеряно"
         elif item == "compass":
+            self.play("compass")
             col = self.needle_idx % self.cols
             row = self.needle_idx // self.cols
             self.compass_quadrant = (row < self.rows / 2,
@@ -83,13 +86,13 @@ class DiggingMixin:
             self.show_notice(item)
             self.notice["sub"] = "Игла в подсвеченной зоне стога"
         elif item == "energy":
-            self.play("click")
+            self.play("energy")
             self.energy_time = ENERGY_TIME
             self.show_notice(item)
             self.notice["sub"] = ("%d секунд: энергия не тратится"
                                   % int(ENERGY_TIME))
         elif item == "clover":
-            self.play("click")
+            self.play("clover")
             self.clover_time = CLOVER_TIME
             self.show_notice(item)
             self.notice["sub"] = (

@@ -138,9 +138,10 @@ class EconomyMixin:
                 self.bnd_lvl += 1
                 bought = True
         if bought:
-            # r52: покупка со звоном кассы
+            # r62: покупка со звоном кассы (cash.wav — дубликат sell.wav —
+            # удалён, играем общий sell)
             self.shop_surf = None
-            self.play("cash")
+            self.play("sell")
             self.save_game()
         else:
             # монет не хватило: глухой писк отказа (error из r41)

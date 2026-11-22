@@ -8,6 +8,24 @@ import pygame
 from game_config import *
 
 
+# r64 (П.4а): константы плашек вынесены из show_notice/draw_notice,
+# чтобы prewarm_notices строил все кэши заранее по одному списку
+# заголовков и одному списку предметов.
+NOTICE_TITLES = {
+    "stone": "КАМЕНЬ!",
+    "plant": "ЯДОВИТОЕ РАСТЕНИЕ!",
+    "animal": "УКУС ЗВЕРЯ!",
+    "bandage": "БИНТ!",
+    "antidote": "ПРОТИВОЯДИЕ!",
+    "compass": "КОМПАС!",
+    "energy": "ЭНЕРГЕТИК!",
+    "clover": "КЛЕВЕР!",
+}
+NOTICE_GREEN = ("bandage", "antidote", "compass", "energy", "clover")
+NOTICE_ITEMS = ("stone", "plant", "animal", "bandage", "antidote",
+                "compass", "energy", "clover")
+
+
 class EffectsMixin:
     """Эффекты: сообщения, таблички находок, соломинки"""
 
@@ -19,17 +37,8 @@ class EffectsMixin:
 
 
     def show_notice(self, item):
-        titles = {
-            "stone": "КАМЕНЬ!",
-            "plant": "ЯДОВИТОЕ РАСТЕНИЕ!",
-            "animal": "УКУС ЗВЕРЯ!",
-            "bandage": "БИНТ!",
-            "antidote": "ПРОТИВОЯДИЕ!",
-            "compass": "КОМПАС!",
-            "energy": "ЭНЕРГЕТИК!",
-            "clover": "КЛЕВЕР!",
-        }
-        self.notice = {"item": item, "title": titles.get(item, item),
+        self.notice = {"item": item,
+                       "title": NOTICE_TITLES.get(item, item),
                        "sub": "", "life": NOTICE_TIME}
 
 
@@ -47,6 +56,50 @@ class EffectsMixin:
         px = (w - pw) // 2
         py = self.field_rect.top + (self.field_rect.h - ph) // 2 - 40
 
+        # r64 (П.4а): панель из кэша, построение — в
+        # _get_notice_panel (заполняется prewarm_notices заранее)
+        panel = self._get_notice_panel(pw)
+        self.screen.blit(panel, (px, py))
+
+        icon_cx = px + pw // 2
+        icon_cy = py + S(92)
+        # r64 (П.4а): диспетчер по имени предмета вместо цепочки
+        # if/elif — одна строка на все восемь находок, иконка из кэша
+        getattr(self, "draw_" + n["item"])(self.screen,
+                                           icon_cx, icon_cy, S(110), None)
+
+        color = GREEN_MSG if n["item"] in NOTICE_GREEN else RED
+        # r34+r53: заголовок и подпись рендерятся ОДИН раз на
+        # уведомление, дальше каждый кадр — только blit. r53: плавная
+        # альфа убрана (срочная правка производительности) — плашка
+        # и иконка появляются и исчезают мгновенно, пер-кадровой
+        # установки альфы больше нет. Текст за жизнь уведомления не
+        # меняется, dict новый на каждое show_notice — кэш
+        # инвалидируется сам.
+        # r64 (П.4а): заголовок из общего кэша _notice_title_cache
+        # (наполняется prewarm_notices до первого кадра), ключ
+        # (текст, цвет) — рендера в кадре копания больше нет
+        cache = getattr(self, "_notice_title_cache", None)
+        if cache is None:
+            cache = self._notice_title_cache = {}
+        t1 = cache.get((n["title"], color))
+        if t1 is None:
+            t1 = self.font_big.render(n["title"], True, color)
+            cache[(n["title"], color)] = t1
+        self.screen.blit(t1, t1.get_rect(center=(w // 2, py + S(178))))
+        if n["sub"]:
+            t2 = n.get("_t2")
+            if t2 is None or n.get("_font2") != id(self.font_mid):
+                t2 = self.font_mid.render(n["sub"], True, TEXT)
+                n["_t2"], n["_font2"] = t2, id(self.font_mid)
+            self.screen.blit(t2, t2.get_rect(center=(w // 2, py + S(226))))
+
+
+
+    def _get_notice_panel(self, pw):
+        """r64 (П.4а): панель плашки — из кэша по ширине; построение
+        вынесено из draw_notice, кэш заполняет prewarm_notices."""
+        ph = S(260)
         cache = getattr(self, "_notice_panel_w", None)
         if cache is None:
             cache = self._notice_panel_w = {}
@@ -59,50 +112,34 @@ class EffectsMixin:
                              (0, 0, pw, ph), 4, border_radius=18)
             panel = panel.convert_alpha()
             cache[pw] = panel
-        self.screen.blit(panel, (px, py))
+        return panel
 
-        icon_cx = px + pw // 2
-        icon_cy = py + S(92)
-        if n["item"] == "stone":
-            self.draw_stone(self.screen, icon_cx, icon_cy, S(110), None)
-        elif n["item"] == "plant":
-            self.draw_plant(self.screen, icon_cx, icon_cy, S(110), None)
-        elif n["item"] == "animal":
-            self.draw_animal(self.screen, icon_cx, icon_cy, S(110), None)
-        elif n["item"] == "bandage":
-            self.draw_bandage(self.screen, icon_cx, icon_cy, S(110), None)
-        elif n["item"] == "antidote":
-            self.draw_antidote(self.screen, icon_cx, icon_cy, S(110), None)
-        elif n["item"] == "compass":
-            self.draw_compass(self.screen, icon_cx, icon_cy, S(110), None)
-        elif n["item"] == "energy":
-            self.draw_energy(self.screen, icon_cx, icon_cy, S(110), None)
-        elif n["item"] == "clover":
-            self.draw_clover(self.screen, icon_cx, icon_cy, S(110), None)
-
-        color = GREEN_MSG if n["item"] in ("bandage", "antidote",
-                                           "compass", "energy",
-                                           "clover") else RED
-        # r34+r53: заголовок и подпись рендерятся ОДИН раз на
-        # уведомление, дальше каждый кадр — только blit. r53: плавная
-        # альфа убрана (срочная правка производительности) — плашка
-        # и иконка появляются и исчезают мгновенно, пер-кадровой
-        # установки альфы больше нет. Текст за жизнь уведомления не
-        # меняется, dict новый на каждое show_notice — кэш
-        # инвалидируется сам.
-        t1 = n.get("_t1")
-        if t1 is None or n.get("_font1") != id(self.font_big):
-            t1 = self.font_big.render(n["title"], True, color)
-            n["_t1"], n["_font1"] = t1, id(self.font_big)
-        self.screen.blit(t1, t1.get_rect(center=(w // 2, py + S(178))))
-        if n["sub"]:
-            t2 = n.get("_t2")
-            if t2 is None or n.get("_font2") != id(self.font_mid):
-                t2 = self.font_mid.render(n["sub"], True, TEXT)
-                n["_t2"], n["_font2"] = t2, id(self.font_mid)
-            self.screen.blit(t2, t2.get_rect(center=(w // 2, py + S(226))))
-
-
+    def prewarm_notices(self):
+        """r64 (П.4а): подогрев кэшей плашек до первого кадра —
+        панели всех ширин заголовков, заголовки обоих цветов и иконки
+        всех находок размера плашки S(110). Первое появление плашки —
+        чистый blit вместо построения панели, рендера заголовка и
+        иконки в кадре копания."""
+        # панели всех ширин заголовков
+        for title in NOTICE_TITLES.values():
+            tw = self.font_big.size(title)[0]
+            pw = max(S(460), tw + 2 * S(24))
+            self._get_notice_panel(pw)
+        # заголовки обоих цветов в общий кэш
+        cache = getattr(self, "_notice_title_cache", None)
+        if cache is None:
+            cache = self._notice_title_cache = {}
+        for title in NOTICE_TITLES.values():
+            for color in (RED, GREEN_MSG):
+                key = (title, color)
+                if key not in cache:
+                    cache[key] = self.font_big.render(title, True, color)
+        # иконки всех находок в кэш _cached_draw (размер плашки)
+        scratch = pygame.Surface((S(110), S(110)), pygame.SRCALPHA)
+        for item in NOTICE_ITEMS:
+            getattr(self, "draw_" + item)(scratch,
+                                          S(110) // 2, S(110) // 2,
+                                          S(110), None)
 
     def draw_messages(self):
         """Сообщения на тёмной плашке — читаются на любом фоне стога."""
@@ -173,8 +210,14 @@ class EffectsMixin:
 
 
     def update_straws(self, dt):
-        alive = []
-        for s in self.straws:
+        # r65 (П.4б): ноль аллокаций списков в кадре — фильтрация на
+        # месте: сам self.straws и есть буфер, выжившие уплотняются к
+        # началу (индекс n не обгоняет текущий, перезапись безопасна),
+        # хвост отрезается. Старый вариант создавал новый список alive
+        # каждый кадр.
+        straws = self.straws
+        n = 0
+        for s in straws:
             s["life"] -= dt
             if s["life"] <= 0:
                 continue
@@ -182,8 +225,9 @@ class EffectsMixin:
             s["x"] += s["vx"] * dt
             s["y"] += s["vy"] * dt
             s["ang"] += s["spin"] * dt
-            alive.append(s)
-        self.straws = alive
+            straws[n] = s
+            n += 1
+        del straws[n:]
 
 
 
