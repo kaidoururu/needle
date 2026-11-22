@@ -4,8 +4,8 @@ package.name = needle
 package.domain = org.kaidoururu
 
 source.dir = .
-source.include_exts = py,png,jpg
-version = 1.2
+source.include_exts = py,png,jpg,kv,atlas,wav
+version = 2.0
 
 icon.filename = icon.png
 
